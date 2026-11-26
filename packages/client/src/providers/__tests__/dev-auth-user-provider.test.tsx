@@ -6,7 +6,7 @@ import { UserContext, UserProvider } from '../user-provider.js';
 
 /**
  * The dev-auth provider (`VITE_DEV_AUTH=1`), which reads the user context with a query of its
- * own. A new business scope hands it a new urql client, as it does the Auth0 provider (see
+ * own. A new business scope hands it a new urql client, as it does the Firebase provider (see
  * `boot-request.test.tsx`), and the app must come back on the new scope's context.
  */
 
@@ -14,7 +14,7 @@ import { UserContext, UserProvider } from '../user-provider.js';
 vi.hoisted(() => {
   vi.stubEnv('VITE_DEV_AUTH', '1');
 });
-vi.mock('@auth0/auth0-react', () => ({ useAuth0: () => ({}) }));
+vi.mock('../../lib/firebase-auth.js', () => ({ useFirebaseAuth: () => ({}) }));
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

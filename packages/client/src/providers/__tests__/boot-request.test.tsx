@@ -20,8 +20,11 @@ import { UserContext, UserProvider } from '../user-provider.js';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const { useAuth0Mock } = vi.hoisted(() => ({ useAuth0Mock: vi.fn() }));
-vi.mock('@auth0/auth0-react', () => ({ useAuth0: useAuth0Mock }));
+const { useFirebaseAuthMock } = vi.hoisted(() => ({ useFirebaseAuthMock: vi.fn() }));
+vi.mock('../../lib/firebase-auth.js', () => ({
+  useFirebaseAuth: useFirebaseAuthMock,
+  hasStoredFirebaseSession: () => false,
+}));
 
 const USER_CONTEXT = {
   memberships: [{ businessId: 'business-1', role: 'business_owner', businessName: 'Acme' }],
@@ -222,7 +225,7 @@ beforeEach(() => {
   root = null;
   container = document.createElement('div');
   document.body.append(container);
-  useAuth0Mock.mockReturnValue({
+  useFirebaseAuthMock.mockReturnValue({
     isAuthenticated: true,
     isLoading: false,
     user: { email: 'member@example.com' },
@@ -367,7 +370,7 @@ describe('a boot answer that went out of date', () => {
 
     // Re-authentication in place can sign in as someone else.
     identity = 'other@example.com';
-    useAuth0Mock.mockReturnValue({
+    useFirebaseAuthMock.mockReturnValue({
       isAuthenticated: true,
       isLoading: false,
       user: { email: identity },

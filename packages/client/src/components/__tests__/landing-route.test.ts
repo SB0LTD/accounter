@@ -8,17 +8,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LandingRoute } from '../../router/guards/auth-guards.js';
 import { ROUTES } from '../../router/routes.js';
 
-const { useAuth0Mock, hasStoredAuth0SessionMock } = vi.hoisted(() => ({
-  useAuth0Mock: vi.fn(),
-  hasStoredAuth0SessionMock: vi.fn(),
+const { useFirebaseAuthMock, hasStoredFirebaseSessionMock } = vi.hoisted(() => ({
+  useFirebaseAuthMock: vi.fn(),
+  hasStoredFirebaseSessionMock: vi.fn(),
 }));
 
-vi.mock('@auth0/auth0-react', () => ({
-  useAuth0: useAuth0Mock,
-}));
-
-vi.mock('../../lib/auth0-session.js', () => ({
-  hasStoredAuth0Session: hasStoredAuth0SessionMock,
+vi.mock('../../lib/firebase-auth.js', () => ({
+  useFirebaseAuth: useFirebaseAuthMock,
+  hasStoredFirebaseSession: hasStoredFirebaseSessionMock,
 }));
 
 (
@@ -33,8 +30,8 @@ type AuthState = {
 };
 
 async function renderRoot(authState: AuthState, hasStoredSession = false) {
-  useAuth0Mock.mockReturnValue(authState);
-  hasStoredAuth0SessionMock.mockReturnValue(hasStoredSession);
+  useFirebaseAuthMock.mockReturnValue(authState);
+  hasStoredFirebaseSessionMock.mockReturnValue(hasStoredSession);
 
   const router = createMemoryRouter(
     [
@@ -104,13 +101,13 @@ describe('LandingRoute', () => {
     await cleanup();
   });
 
-  it('paints immediately while Auth0 loads when there is no cached session', async () => {
+  it('paints immediately while Firebase loads when there is no stored session', async () => {
     const { html, router, cleanup } = await renderRoot(
       { isAuthenticated: false, isLoading: true },
       false,
     );
 
-    // A first-time visitor must not wait on an Auth0 round trip to read the page.
+    // A first-time visitor must not wait for Firebase to load to read the page.
     expect(html).toContain('Landing Page');
     expect(router.state.location.pathname).toBe(ROUTES.HOME);
     await cleanup();

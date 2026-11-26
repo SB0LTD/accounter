@@ -1,7 +1,7 @@
 import { Injectable, Scope } from 'graphql-modules';
 // eslint-disable-next-line no-restricted-imports
 import type { PoolClient } from 'pg';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import { UUID_REGEX } from '../../../shared/constants.js';
 import { makeUUID } from '../../../shared/helpers/deterministic-uuid.js';
 import { TenantAwareDBClient } from '../../app-providers/tenant-db-client.js';

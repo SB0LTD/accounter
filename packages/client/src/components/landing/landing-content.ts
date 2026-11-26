@@ -113,6 +113,8 @@ export type LandingContent = {
     sections: LandingSection[];
     login: string;
     requestAccess: string;
+    /** Lead-in to the SB0 mark beside the product name ("by"). */
+    by: string;
   };
   hero: {
     kicker: string;
@@ -173,8 +175,14 @@ export type LandingContent = {
     title: string;
     description: string;
     requestAccess: string;
-    /** Short lead-in rendered next to The Guild's logo. */
-    maintainedBy: string;
+    /** Who runs the service, beside the SB0 mark. */
+    operatedBy: string;
+    /** Credit for the open-source code, linked to The Guild. */
+    openSource: string;
+    /** What signing in with Google shares, for the consent screen's reviewers and users alike. */
+    signInNote: string;
+    privacy: string;
+    terms: string;
   };
 };
 
@@ -190,6 +198,7 @@ const EN: LandingContent = {
     ],
     login: 'Log in',
     requestAccess: 'Request access',
+    by: 'by',
   },
   hero: {
     kicker: 'A complete end-to-end financial system for Israeli businesses',
@@ -528,7 +537,12 @@ const EN: LandingContent = {
     description:
       'Tell us about your business and we will set up a workspace for you and your accountant.',
     requestAccess: 'Request access',
-    maintainedBy: 'Maintained by',
+    operatedBy: 'A service of SB0 LTD',
+    openSource: 'Open source by The Guild',
+    signInNote:
+      'Sign in with Google or with an email and password. From Google we receive only your name, email address and profile picture, and use them only to sign you in.',
+    privacy: 'Privacy',
+    terms: 'Terms',
   },
 };
 
@@ -544,6 +558,7 @@ const HE: LandingContent = {
     ],
     login: 'התחברות',
     requestAccess: 'בקשת גישה',
+    by: 'מבית',
   },
   hero: {
     kicker: 'מערכת פיננסית מלאה מקצה לקצה לעסקים ישראלים',
@@ -865,7 +880,12 @@ const HE: LandingContent = {
     title: 'תפסיקו לעשות הנהלת חשבונות ידנית ותתקדמו לעתיד של הניהול הכלכלי',
     description: 'ספרו לנו על העסק שלכם ונקים סביבת עבודה לכם ולרואה החשבון שלכם.',
     requestAccess: 'בקשת גישה',
-    maintainedBy: 'מנוהל על ידי',
+    operatedBy: 'שירות של SB0 בע״מ',
+    openSource: 'קוד פתוח מבית The Guild',
+    signInNote:
+      'אפשר להיכנס עם Google או עם דוא״ל וסיסמה. מ־Google אנחנו מקבלים רק את השם, כתובת הדוא״ל ותמונת הפרופיל, ומשתמשים בהם רק כדי להכניס אתכם.',
+    privacy: 'פרטיות',
+    terms: 'תנאי שימוש',
   },
 };
 

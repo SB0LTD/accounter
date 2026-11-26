@@ -1,8 +1,8 @@
 import { useContext, useEffect, useState, type JSX } from 'react';
 import { CircleCheckBig, FileDown, KeyRound, Shield, User2Icon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useAuth0 } from '@auth0/auth0-react';
 import { useMyMemberships } from '../../hooks/use-my-memberships.js';
+import { useFirebaseAuth } from '../../lib/firebase-auth.js';
 import { UserContext } from '../../providers/index.js';
 import { getBusinessScopeIds, setBusinessScope } from '../../providers/urql.js';
 import { ROUTES } from '../../router/routes.js';
@@ -39,7 +39,7 @@ let modalAwaitingRemount: UserNavModal | null = null;
 
 export function UserNav(): JSX.Element | null {
   const { userContext } = useContext(UserContext);
-  const { isAuthenticated, user } = useAuth0();
+  const { isAuthenticated, user } = useFirebaseAuth();
   const [openModal, setOpenModal] = useState<UserNavModal | null>(() => modalAwaitingRemount);
   useEffect(() => {
     // This mount has taken over any modal handed down across a scope change.
@@ -68,27 +68,7 @@ export function UserNav(): JSX.Element | null {
     .toUpperCase()
     .slice(0, 2);
 
-  const rawUser = user as Record<string, unknown>;
-  const roleFromClaim = ((): string | null => {
-    if (typeof rawUser['https://accounter.app/role'] === 'string') {
-      return rawUser['https://accounter.app/role'];
-    }
-    if (typeof rawUser.role === 'string') {
-      return rawUser.role;
-    }
-    if (
-      Array.isArray(rawUser['https://accounter.app/roles']) &&
-      rawUser['https://accounter.app/roles'].length > 0
-    ) {
-      return String(rawUser['https://accounter.app/roles'][0]);
-    }
-    if (Array.isArray(rawUser.roles) && rawUser.roles.length > 0) {
-      return String(rawUser.roles[0]);
-    }
-    return null;
-  })();
-
-  const roleLabel = (roleFromClaim ?? (userContext?.context.adminBusinessId ? 'admin' : 'member'))
+  const roleLabel = (userContext?.context.adminBusinessId ? 'admin' : 'member')
     .split(/[_-]/g)
     .map(part => part[0]?.toUpperCase() + part.slice(1))
     .join(' ');
@@ -145,7 +125,7 @@ export function UserNav(): JSX.Element | null {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-8 w-8 rounded-full">
             <Avatar className="h-8 w-8 items-center flex flex-row justify-center">
-              <AvatarImage src={user.picture} alt={userName} />
+              <AvatarImage src={user.picture ?? undefined} alt={userName} />
               <AvatarFallback>{initials || <User2Icon size={20} />}</AvatarFallback>
             </Avatar>
           </Button>

@@ -1,6 +1,6 @@
 import DataLoader from 'dataloader';
 import { Injectable, Scope } from 'graphql-modules';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import { compareTimelessDates } from '../../../shared/helpers/index.js';
 import { TimelessDateString } from '../../../shared/types/index.js';
 import { TenantAwareDBClient } from '../../app-providers/tenant-db-client.js';

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Injectable, Scope } from 'graphql-modules';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import { DBProvider } from '../../app-providers/db.provider.js';
 import { AuditLogsProvider } from '../../common/providers/audit-logs.provider.js';
 import {

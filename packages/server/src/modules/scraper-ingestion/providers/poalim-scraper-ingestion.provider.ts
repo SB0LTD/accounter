@@ -1,6 +1,6 @@
 import { GraphQLError } from 'graphql';
 import { Injectable, Scope } from 'graphql-modules';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import type {
   ChangedField,
   ChangedTransaction,

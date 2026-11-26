@@ -1,6 +1,6 @@
 import DataLoader from 'dataloader';
 import { Injectable, Scope } from 'graphql-modules';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import { Currency } from '../../../shared/enums.js';
 import { formatCurrency } from '../../../shared/helpers/amount.js';
 import { AdminContextProvider } from '../../admin-context/providers/admin-context.provider.js';

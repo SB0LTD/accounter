@@ -8,6 +8,8 @@ import { useGraphQLModules } from '@envelop/graphql-modules';
 import { useHive } from '@graphql-hive/yoga';
 import { useDeferStream } from '@graphql-yoga/plugin-defer-stream';
 import { env } from './environment.js';
+import { FirestorePool } from './firestore/client.js';
+import { firestoreStore } from './firestore/store.js';
 import { cleanupExpiredInvitations, type Logger } from './jobs/cleanup-expired-invitations.js';
 import { scheduleDailyAtUtc } from './jobs/utils.js';
 import { createGraphQLApp } from './modules-app.js';
@@ -35,15 +37,9 @@ const CLEANUP_SCHEDULE_MINUTE_UTC = 0;
 const PRICE_INDEX_SYNC_HOUR_UTC = 17;
 const PRICE_INDEX_SYNC_MINUTE_UTC = 0;
 
-async function main() {
-  // From SERVER_LOG_LEVEL (default `info`), never from `DEBUG`. One level for this server's own
-  // structured logs, Yoga and Hive (which forwards its logs to Yoga's logger).
-  setLogLevel(env.logging.level);
-
-  await startTelemetry();
-
-  // Create a shared connection pool for the entire application
-  const pool = new Pool({
+/** The Postgres connection pool (ACCOUNTER_DB_ENGINE=postgres). */
+function createPostgresPool(): pg.Pool {
+  return new Pool({
     user: env.postgres.user,
     password: env.postgres.password,
     host: env.postgres.host,
@@ -72,14 +68,42 @@ async function main() {
     // Keep `date` columns as `yyyy-mm-dd` strings instead of server-local `Date`s (#4560).
     types: pgTypeParsers,
   });
+}
 
-  if (env.auth0) {
+async function main() {
+  // From SERVER_LOG_LEVEL (default `info`), never from `DEBUG`. One level for this server's own
+  // structured logs, Yoga and Hive (which forwards its logs to Yoga's logger).
+  setLogLevel(env.logging.level);
+
+  await startTelemetry();
+
+  // Create a shared connection pool for the entire application. On Firestore it is the store's
+  // pg-shaped pool (docs/firestore/design.md); everything downstream drives it the same way.
+  const pool: pg.Pool =
+    env.database.engine === 'firestore'
+      ? (new FirestorePool(
+          firestoreStore({
+            projectId: env.database.firestore.projectId,
+            databaseId: env.database.firestore.databaseId,
+          }),
+        ) as unknown as pg.Pool)
+      : createPostgresPool();
+  log('info', 'database-engine', {
+    engine: env.database.engine,
+    ...(env.database.engine === 'firestore' ? env.database.firestore : {}),
+  });
+
+  if (env.firebaseAuth) {
+    log('info', 'firebase-auth-configured', { projectId: env.firebaseAuth.projectId });
+  } else if (env.auth0) {
     log('info', 'auth0-configured', { domain: env.auth0.domain });
   } else {
     log('info', 'auth0-not-configured');
   }
 
   const dbProvider = new DBProvider(pool);
+
+  const identityConfigured = Boolean(env.firebaseAuth || env.auth0);
 
   // Reclaim any request-scoped connection whose owner disappeared without
   // disposing it. Disposal is driven by request lifecycle hooks, and the bug
@@ -132,7 +156,7 @@ async function main() {
     error: (message, meta) => log('error', message, metaFields(meta)),
   };
 
-  const cleanupSchedule = env.auth0
+  const cleanupSchedule = identityConfigured
     ? scheduleDailyAtUtc(
         CLEANUP_SCHEDULE_HOUR_UTC,
         CLEANUP_SCHEDULE_MINUTE_UTC,

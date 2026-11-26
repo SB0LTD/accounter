@@ -1,7 +1,7 @@
 import DataLoader from 'dataloader';
 import { GraphQLError } from 'graphql';
 import { Injectable, Scope } from 'graphql-modules';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import { reassureOwnerIdExists } from '../../../shared/helpers/index.js';
 import type { TimelessDateString } from '../../../shared/types/index.js';
 import { AdminContextProvider } from '../../admin-context/providers/admin-context.provider.js';

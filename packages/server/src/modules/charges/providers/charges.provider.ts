@@ -1,6 +1,6 @@
 import DataLoader from 'dataloader';
 import { Injectable, Scope } from 'graphql-modules';
-import { sql, type IDatabaseConnection } from '@pgtyped/runtime';
+import { sql, type IDatabaseConnection } from '../../../firestore/sql.js';
 import type { Optional, TimelessDateString } from '../../../shared/types/index.js';
 import { TenantAwareDBClient } from '../../app-providers/tenant-db-client.js';
 import type {

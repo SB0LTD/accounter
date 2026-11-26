@@ -8,17 +8,17 @@ import { AcceptInvitationPage } from '../accept-invitation.js';
 import { ROUTES } from '../../../router/routes.js';
 
 const {
-  useAuth0Mock,
+  useFirebaseAuthMock,
   useAcceptInvitationMock,
-  loginWithRedirectMock,
+  loginMock,
   acceptInvitationMock,
   navigateMock,
   hookState,
   routeToken,
 } = vi.hoisted(() => ({
-  useAuth0Mock: vi.fn(),
+  useFirebaseAuthMock: vi.fn(),
   useAcceptInvitationMock: vi.fn(),
-  loginWithRedirectMock: vi.fn(),
+  loginMock: vi.fn<(options?: { returnTo?: string; isReauth?: boolean }) => Promise<void>>(),
   acceptInvitationMock: vi.fn(),
   navigateMock: vi.fn(),
   hookState: {
@@ -28,8 +28,12 @@ const {
   routeToken: { value: 'invite-token-123' },
 }));
 
-vi.mock('@auth0/auth0-react', () => ({
-  useAuth0: useAuth0Mock,
+vi.mock('../../../lib/firebase-auth.js', () => ({
+  useFirebaseAuth: useFirebaseAuthMock,
+}));
+
+vi.mock('../../../hooks/use-login.js', () => ({
+  useLogin: () => loginMock,
 }));
 
 vi.mock('../../../hooks/use-accept-invitation.js', () => ({
@@ -87,10 +91,9 @@ function mockAuthState({
   isAuthenticated: boolean;
   isLoading?: boolean;
 }) {
-  useAuth0Mock.mockReturnValue({
+  useFirebaseAuthMock.mockReturnValue({
     isAuthenticated,
     isLoading: isLoading ?? false,
-    loginWithRedirect: loginWithRedirectMock,
   });
 }
 
@@ -108,6 +111,8 @@ function mockMutationState({
 describe('AcceptInvitationPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
+    loginMock.mockResolvedValue(undefined);
     routeToken.value = 'invite-token-123';
     acceptInvitationMock.mockResolvedValue({
       success: true,
@@ -122,25 +127,36 @@ describe('AcceptInvitationPage', () => {
     }));
   });
 
-  it('shows login prompt for unauthenticated users and hides accept action', async () => {
+  it('shows a sign-in prompt for unauthenticated users and hides accept action', async () => {
     mockAuthState({ isAuthenticated: false });
 
     const { container, cleanup } = await renderScreen();
 
     expect(container.textContent).toContain("You've been invited!");
-    expect(container.textContent).toContain('Login / Create Account');
+    expect(container.textContent).toContain('Sign in to accept');
     expect(container.textContent).not.toContain('Accept Invitation');
 
     await cleanup();
   });
 
-  it('preserves token in Auth0 login appState.returnTo', async () => {
+  it('waits for the stored session before offering anything', async () => {
+    mockAuthState({ isAuthenticated: false, isLoading: true });
+
+    const { container, cleanup } = await renderScreen();
+
+    expect(container.textContent).toContain('Loading invitation...');
+    expect(container.querySelector('button')).toBeNull();
+
+    await cleanup();
+  });
+
+  it('sends the user to sign in, and back to this invitation after', async () => {
     mockAuthState({ isAuthenticated: false });
 
     const { container, cleanup } = await renderScreen();
 
     const loginButton = Array.from(container.querySelectorAll('button')).find(button =>
-      /login\s*\/\s*create account/i.test(button.textContent ?? ''),
+      /sign in to accept/i.test(button.textContent ?? ''),
     );
     expect(loginButton).toBeTruthy();
 
@@ -149,14 +165,10 @@ describe('AcceptInvitationPage', () => {
       await Promise.resolve();
     });
 
-    expect(loginWithRedirectMock).toHaveBeenCalledWith({
-      authorizationParams: {
-        audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-        scope: 'openid profile email offline_access',
-        redirect_uri: `${window.location.origin}${ROUTES.AUTH_CALLBACK}`,
-      },
-      appState: { returnTo: ROUTES.ACCEPT_INVITATION('invite-token-123') },
-    });
+    const invitation = ROUTES.ACCEPT_INVITATION('invite-token-123');
+    expect(loginMock).toHaveBeenCalledWith({ returnTo: invitation });
+    // Remembered apart from any other destination, so sign-in comes back here first.
+    expect(sessionStorage.getItem('auth:invitationReturnTo')).toBe(invitation);
 
     await cleanup();
   });

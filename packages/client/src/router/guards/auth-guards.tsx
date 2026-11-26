@@ -1,9 +1,9 @@
 import { useContext, useEffect, type ReactElement } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth0 } from '@auth0/auth0-react';
+import { RedirectAfterSignIn } from '../../components/auth/redirect-after-sign-in.js';
 import { PageSkeleton } from '../../components/layout/page-skeleton.js';
 import { useSessionViewer, useViewer } from '../../hooks/use-viewer.js';
-import { hasStoredAuth0Session } from '../../lib/auth0-session.js';
+import { hasStoredFirebaseSession, useFirebaseAuth } from '../../lib/firebase-auth.js';
 import { UserContext } from '../../providers/user-provider.js';
 import { ROUTES } from '../routes.js';
 
@@ -19,14 +19,14 @@ export function ProtectedRoute({ children }: GuardProps): ReactElement {
   }
 
   return (
-    <Auth0ProtectedRoute>
+    <SignedInRoute>
       <OnboardingGuard>{children}</OnboardingGuard>
-    </Auth0ProtectedRoute>
+    </SignedInRoute>
   );
 }
 
-function Auth0ProtectedRoute({ children }: GuardProps): ReactElement {
-  const { isAuthenticated, isLoading } = useAuth0();
+function SignedInRoute({ children }: GuardProps): ReactElement {
+  const { isAuthenticated, isLoading } = useFirebaseAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -49,7 +49,7 @@ function Auth0ProtectedRoute({ children }: GuardProps): ReactElement {
 /**
  * Keeps an authenticated-but-unprovisioned user off the app shell.
  *
- * Being signed in to Auth0 is not enough to use Accounter — the identity must be
+ * Being signed in is not enough to use Accounter — the identity must be
  * linked to at least one business. Without this guard such a user renders the
  * dashboard over queries that all fail, with no explanation and no way forward.
  *
@@ -99,8 +99,8 @@ export function OnboardingGuard({ children }: GuardProps): ReactElement {
  * A visitor without a session gets the public landing page; anyone already
  * signed in is sent straight into the app. Unlike the other guards this one
  * does not hold the render back on `isLoading` by default — the landing page is
- * the first thing a stranger ever sees, and making them wait on an Auth0 round
- * trip to read marketing copy is the wrong trade. A cached session is the one
+ * the first thing a stranger ever sees, and making them wait for Firebase to
+ * load to read marketing copy is the wrong trade. A stored session is the one
  * case worth waiting for: it means a redirect is coming, so painting the
  * marketing page first would only be a flash.
  */
@@ -109,14 +109,14 @@ export function LandingRoute({ children }: GuardProps): ReactElement {
     return <Navigate to={ROUTES.APP_HOME} replace />;
   }
 
-  return <Auth0LandingRoute>{children}</Auth0LandingRoute>;
+  return <SessionLandingRoute>{children}</SessionLandingRoute>;
 }
 
-function Auth0LandingRoute({ children }: GuardProps): ReactElement {
-  const { isAuthenticated, isLoading } = useAuth0();
+function SessionLandingRoute({ children }: GuardProps): ReactElement {
+  const { isAuthenticated, isLoading } = useFirebaseAuth();
 
   if (isLoading) {
-    return hasStoredAuth0Session() ? <PageSkeleton /> : children;
+    return hasStoredFirebaseSession() ? <PageSkeleton /> : children;
   }
 
   if (isAuthenticated) {
@@ -131,27 +131,27 @@ export function PublicOnlyGuard({ children }: GuardProps): ReactElement {
     return children;
   }
 
-  return <Auth0PublicOnlyGuard>{children}</Auth0PublicOnlyGuard>;
+  return <SignedOutGuard>{children}</SignedOutGuard>;
 }
 
-function Auth0PublicOnlyGuard({ children }: GuardProps): ReactElement {
-  const { isAuthenticated, isLoading } = useAuth0();
+/**
+ * Keeps a signed-in user off the login page, taking them where they were going instead (an
+ * invitation being accepted, the page that sent them to sign in, or the app). That includes the
+ * moment a sign-in on the page succeeds: this is what leaves the login page afterwards.
+ */
+function SignedOutGuard({ children }: GuardProps): ReactElement {
+  const { isAuthenticated, isLoading } = useFirebaseAuth();
   const location = useLocation();
   const isForcedReauth = new URLSearchParams(location.search).get('reauth') === '1';
-  const invitationReturnTo =
-    typeof window === 'undefined' ? null : sessionStorage.getItem('auth:invitationReturnTo');
 
   if (isLoading) {
     return <PageSkeleton />;
   }
 
-  // Allow explicit re-authentication flow to render the login page even when
-  // Auth0 still reports an authenticated browser session.
+  // Allow the explicit re-authentication flow to render the login page even when Firebase still
+  // reports a signed-in user. The login page then leaves by itself once signed in again.
   if (isAuthenticated && !isForcedReauth) {
-    if (invitationReturnTo) {
-      sessionStorage.removeItem('auth:invitationReturnTo');
-    }
-    return <Navigate to={invitationReturnTo ?? ROUTES.APP_HOME} replace />;
+    return <RedirectAfterSignIn />;
   }
 
   return children;

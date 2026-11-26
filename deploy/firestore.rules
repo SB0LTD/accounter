@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// The `accounter` database is read and written only by the Accounter API (Admin SDK, which
+// bypasses these rules). No browser or client SDK may touch it directly.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

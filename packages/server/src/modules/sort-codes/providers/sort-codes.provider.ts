@@ -2,7 +2,7 @@ import DataLoader from 'dataloader';
 import { Injectable, Scope } from 'graphql-modules';
 // eslint-disable-next-line no-restricted-imports
 import type { PoolClient } from 'pg';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import { reassureOwnerIdExists } from '../../../shared/helpers/index.js';
 import { AdminContextProvider } from '../../admin-context/providers/admin-context.provider.js';
 import { TenantAwareDBClient } from '../../app-providers/tenant-db-client.js';

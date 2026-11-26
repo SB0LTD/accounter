@@ -24,7 +24,7 @@ type UseViewer = {
  * The caller's identity and provisioning state.
  *
  * `viewer` is unauthenticated-safe on the server, so this is the one query that
- * still answers for a user who is logged in to Auth0 but linked to no business.
+ * still answers for a user who is signed in but linked to no business.
  */
 export const useViewer = (options?: { pause?: boolean }): UseViewer => {
   const [{ data, fetching, error }] = useQuery({

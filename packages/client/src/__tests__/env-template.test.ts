@@ -10,8 +10,11 @@ import { CLIENT_BUILD_ENV, clientBuildEnvDefines } from '../../build-env.js';
  * entry named in the message.
  */
 
-/** Client variables the server reads too, so they also belong in the root template. */
-const SHARED_WITH_ROOT = ['AUTH0_DOMAIN', 'AUTH0_AUDIENCE', 'ALLOW_DEV_AUTH'];
+/**
+ * Client variables the server reads too, so they also belong in the root template. The Firebase
+ * ones are client-only: the server names its project in its own FIREBASE_AUTH_PROJECT_ID.
+ */
+const SHARED_WITH_ROOT = ['ALLOW_DEV_AUTH'];
 
 const CLIENT_TEMPLATE = new URL('../../.env.template', import.meta.url);
 const ROOT_TEMPLATE = new URL('../../../../.env.template', import.meta.url);
@@ -64,8 +67,11 @@ describe('client .env.template', () => {
 
 describe('clientBuildEnvDefines', () => {
   it('inlines each set variable under its VITE_* name', () => {
-    const defines = clientBuildEnvDefines({ AUTH0_DOMAIN: 'tenant.auth0.com', ALLOW_DEV_AUTH: '1' });
-    expect(defines['import.meta.env.VITE_AUTH0_DOMAIN']).toBe('"tenant.auth0.com"');
+    const defines = clientBuildEnvDefines({
+      FIREBASE_AUTH_DOMAIN: 'project.firebaseapp.com',
+      ALLOW_DEV_AUTH: '1',
+    });
+    expect(defines['import.meta.env.VITE_FIREBASE_AUTH_DOMAIN']).toBe('"project.firebaseapp.com"');
     expect(defines['import.meta.env.VITE_DEV_AUTH']).toBe('"1"');
   });
 
@@ -74,6 +80,6 @@ describe('clientBuildEnvDefines', () => {
   });
 
   it('leaves other unset variables undefined', () => {
-    expect(clientBuildEnvDefines({})['import.meta.env.VITE_AUTH0_AUDIENCE']).toBeUndefined();
+    expect(clientBuildEnvDefines({})['import.meta.env.VITE_FIREBASE_API_KEY']).toBeUndefined();
   });
 });

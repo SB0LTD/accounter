@@ -1,5 +1,5 @@
 import { Injectable, Scope } from 'graphql-modules';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import { CbsPriceIndexClient } from '../../app-providers/cbs-price-index-client.js';
 import { DBProvider } from '../../app-providers/db.provider.js';
 import { addMonths, CPI_INDEX_CODE, periodToYearMonth } from '../helpers/price-index.helper.js';

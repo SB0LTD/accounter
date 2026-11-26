@@ -128,6 +128,9 @@ export const ROUTES = {
   LOGIN: '/login',
   AUTH_CALLBACK: '/auth/callback',
   WELCOME: '/welcome',
+  /** Public legal pages, open with or without a session. */
+  PRIVACY: '/privacy',
+  TERMS: '/terms',
   ACCEPT_INVITATION: (token = ':token') => `/accept-invitation/${token}`,
   NETWORK_ERROR: '/network-error',
 

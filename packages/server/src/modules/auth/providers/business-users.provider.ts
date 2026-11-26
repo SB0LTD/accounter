@@ -1,7 +1,7 @@
 import DataLoader from 'dataloader';
 import { GraphQLError } from 'graphql';
 import { Injectable, Scope } from 'graphql-modules';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import { UUID_REGEX } from '../../../shared/constants.js';
 import type { AuthContext, BusinessMembership, TenantContext } from '../../../shared/types/auth.js';
 import type { NoOptionalField } from '../../../shared/types/index.js';

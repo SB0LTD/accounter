@@ -1,6 +1,6 @@
 import DataLoader from 'dataloader';
 import { Injectable, Scope } from 'graphql-modules';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import {
   getCacheInstance,
   maxTimelessDate,
@@ -72,13 +72,19 @@ export class FiatExchangeProvider {
       },
       this.dbProvider,
     );
-    return dates.map(date =>
-      rates
-        .filter(rate => rate.exchange_date! <= date)
-        .reduce((prev: IGetExchangeRatesByDatesResult, curr: IGetExchangeRatesByDatesResult) =>
+    // One result per date: the latest rate on or before it. A date with no such rate gets its own
+    // Error (DataLoader rejects only that key), instead of a throw that failed the whole batch and
+    // could surface as an unhandled rejection that stopped the server.
+    return dates.map(date => {
+      const candidates = rates.filter(rate => rate.exchange_date! <= date);
+      if (candidates.length === 0) {
+        return new Error(`No exchange rates on or before ${date}`);
+      }
+      return candidates.reduce(
+        (prev: IGetExchangeRatesByDatesResult, curr: IGetExchangeRatesByDatesResult) =>
           (prev.exchange_date ?? '') > (curr.exchange_date ?? '') ? prev : curr,
-        ),
-    );
+      );
+    });
   }
 
   public getExchangeRatesByDatesLoader = new DataLoader(

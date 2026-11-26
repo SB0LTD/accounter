@@ -303,6 +303,28 @@ const Auth0DomainModel = zod
     message: 'AUTH0_DOMAIN must be a bare hostname, without a path, query string or fragment',
   });
 
+/**
+ * Which database the server runs on. `firestore` (docs/firestore/design.md) needs no POSTGRES_*
+ * connection settings; the pool tuning variables still shape the request-scoped client.
+ */
+const DatabaseModel = zod.object({
+  ACCOUNTER_DB_ENGINE: emptyString(
+    zod.union([zod.literal('postgres'), zod.literal('firestore')]).optional().default('postgres'),
+  ),
+  // Google Cloud project of the Firestore database (default: the runtime's project).
+  FIRESTORE_PROJECT_ID: emptyString(zod.string().optional()),
+  // Named Firestore database (default: accounter).
+  FIRESTORE_DATABASE_ID: emptyString(zod.string().optional().default('accounter')),
+});
+
+/**
+ * Firebase Authentication in place of Auth0: the project whose ID tokens the server accepts and
+ * whose users invitations manage. Set it, or the five AUTH0_* variables, not both.
+ */
+const FirebaseAuthModel = zod.object({
+  FIREBASE_AUTH_PROJECT_ID: emptyString(zod.string().optional()),
+});
+
 const Auth0Model = zod.union([
   zod.object({
     AUTH0_DOMAIN: Auth0DomainModel,
@@ -325,6 +347,8 @@ const Auth0Model = zod.union([
 ]);
 
 const models = {
+  database: DatabaseModel,
+  firebaseAuth: FirebaseAuthModel,
   postgres: PostgresModel,
   cloudinary: CloudinaryModel,
   hive: HiveModel,
@@ -358,8 +382,24 @@ export const ENV_SCHEMA_KEYS: ReadonlySet<string> = new Set(
   Object.values(models).flatMap(model => declaredKeys(model)),
 );
 
+const firestoreEngine = process.env['ACCOUNTER_DB_ENGINE'] === 'firestore';
+
 const configs = {
-  postgres: models.postgres.safeParse(process.env),
+  database: models.database.safeParse(process.env),
+  firebaseAuth: models.firebaseAuth.safeParse(process.env),
+  // On Firestore there is no Postgres server to name; the connection fields get placeholders.
+  postgres: models.postgres.safeParse(
+    firestoreEngine
+      ? {
+          POSTGRES_HOST: 'firestore',
+          POSTGRES_PORT: '5432',
+          POSTGRES_DB: 'firestore',
+          POSTGRES_USER: 'firestore',
+          POSTGRES_PASSWORD: 'firestore',
+          ...process.env,
+        }
+      : process.env,
+  ),
   cloudinary: models.cloudinary.safeParse(process.env),
   hive: models.hive.safeParse(process.env),
   googleDrive: models.googleDrive.safeParse(process.env),
@@ -394,6 +434,8 @@ function extractConfig<Output>(config: zod.ZodSafeParseResult<Output>): Output {
   return config.data;
 }
 
+const database = extractConfig(configs.database);
+const firebaseAuth = extractConfig(configs.firebaseAuth);
 const postgres = extractConfig(configs.postgres);
 
 /**
@@ -417,6 +459,16 @@ const priceIndexSync = extractConfig(configs.priceIndexSync);
 const logging = extractConfig(configs.logging);
 
 export const env = {
+  database: {
+    engine: database.ACCOUNTER_DB_ENGINE,
+    firestore: {
+      projectId: database.FIRESTORE_PROJECT_ID,
+      databaseId: database.FIRESTORE_DATABASE_ID,
+    },
+  },
+  firebaseAuth: firebaseAuth.FIREBASE_AUTH_PROJECT_ID
+    ? { projectId: firebaseAuth.FIREBASE_AUTH_PROJECT_ID }
+    : undefined,
   postgres: {
     host: postgres.POSTGRES_HOST,
     port: postgres.POSTGRES_PORT,

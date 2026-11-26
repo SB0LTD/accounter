@@ -10,9 +10,10 @@
  * this map, the template and `src/vite-env.d.ts` in sync.
  */
 export const CLIENT_BUILD_ENV = {
-  AUTH0_DOMAIN: 'VITE_AUTH0_DOMAIN',
-  AUTH0_FRONTEND_CLIENT_ID: 'VITE_AUTH0_FRONTEND_CLIENT_ID',
-  AUTH0_AUDIENCE: 'VITE_AUTH0_AUDIENCE',
+  FIREBASE_API_KEY: 'VITE_FIREBASE_API_KEY',
+  FIREBASE_AUTH_DOMAIN: 'VITE_FIREBASE_AUTH_DOMAIN',
+  FIREBASE_PROJECT_ID: 'VITE_FIREBASE_PROJECT_ID',
+  FIREBASE_APP_ID: 'VITE_FIREBASE_APP_ID',
   GRAPHQL_URL: 'VITE_GRAPHQL_URL',
   ALLOW_DEV_AUTH: 'VITE_DEV_AUTH',
   DEV_AUTH_USER_ID: 'VITE_DEV_AUTH_USER_ID',
@@ -21,7 +22,7 @@ export const CLIENT_BUILD_ENV = {
 /**
  * `GRAPHQL_URL` is inlined as an empty string when unset, rather than the literal `undefined`, so
  * `resolveGraphQLUrl` can test for it and fall back to its per-mode default. The others keep
- * `undefined` when unset (Auth0 treats an empty `audience` differently from a missing one).
+ * `undefined` when unset, so the code reading them can tell a missing value from an empty one.
  */
 const EMPTY_WHEN_UNSET: ReadonlySet<keyof typeof CLIENT_BUILD_ENV> = new Set(['GRAPHQL_URL']);
 

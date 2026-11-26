@@ -1,5 +1,5 @@
 import { Injectable, Scope } from 'graphql-modules';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import { AdminContextProvider } from '../../admin-context/providers/admin-context.provider.js';
 import { TenantAwareDBClient } from '../../app-providers/tenant-db-client.js';
 import { BusinessTripAttendeesProvider } from '../../business-trips/providers/business-trips-attendees.provider.js';

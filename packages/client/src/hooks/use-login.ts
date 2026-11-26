@@ -1,48 +1,39 @@
 import { useCallback } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useNavigate } from 'react-router-dom';
+import { rememberReturnTo } from '../lib/auth-return-to.js';
 import { ROUTES } from '../router/routes.js';
 
-/** Scopes the interactive login must request; `offline_access` buys silent renewal later. */
-const LOGIN_SCOPE = 'openid profile email offline_access';
-
 type LoginOptions = {
-  /** Where to land once the callback resolves. Defaults to the app's first screen. */
+  /** Where to land once signed in. Defaults to the app's first screen. */
   returnTo?: string;
   /**
-   * Forces Auth0 to re-prompt even when it still reports a browser session, and
-   * keeps any `returnTo` a previous step already stored.
+   * A re-login after an expired session: the login page says so, and any `returnTo` a previous
+   * step already stored is kept.
    */
   isReauth?: boolean;
 };
 
 /**
- * Sends the browser to Auth0 Universal Login.
+ * Takes the user to the sign-in page, remembering where to go once signed in.
  *
- * Shared so that every entry point — the landing page's Log in button, the
- * login screen, a session that expired mid-use — asks for the same audience,
- * scopes and callback URL. Getting one of those wrong is the kind of bug that
- * only shows up as a silent-renewal failure days later.
+ * Shared so that every entry point (the landing page's Log in button, an invitation, a session
+ * that expired mid-use) stores the destination the same way: `auth:returnTo` in sessionStorage,
+ * which the sign-in page and the route guards read back (`lib/auth-return-to.ts`).
  */
 export function useLogin(): (options?: LoginOptions) => Promise<void> {
-  const { loginWithRedirect } = useAuth0();
+  const navigate = useNavigate();
 
   return useCallback(
-    ({ returnTo = ROUTES.APP_HOME, isReauth = false }: LoginOptions = {}) => {
+    async ({ returnTo = ROUTES.APP_HOME, isReauth = false }: LoginOptions = {}) => {
       // Do not overwrite a returnTo an earlier step in the reauth flow stored.
-      if (!isReauth || !sessionStorage.getItem('auth:returnTo')) {
-        sessionStorage.setItem('auth:returnTo', returnTo);
-      }
+      rememberReturnTo(returnTo, { keepExisting: isReauth });
 
-      return loginWithRedirect({
-        authorizationParams: {
-          audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-          scope: LOGIN_SCOPE,
-          ...(isReauth ? { prompt: 'login' } : {}),
-          redirect_uri: `${window.location.origin}${ROUTES.AUTH_CALLBACK}`,
-        },
-        appState: { returnTo },
-      });
+      if (isReauth) {
+        await navigate(`${ROUTES.LOGIN}?reauth=1`);
+        return;
+      }
+      await navigate(ROUTES.LOGIN, { state: { returnTo } });
     },
-    [loginWithRedirect],
+    [navigate],
   );
 }

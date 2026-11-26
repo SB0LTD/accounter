@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Scope, type Injector } from 'graphql-modules';
 import type { PoolClient } from 'pg';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import { DocumentType } from '../../../shared/enums.js';
 import { hashStringToInt } from '../../../shared/helpers/index.js';
 import { CloudinaryProvider } from '../../app-providers/cloudinary.js';

@@ -240,6 +240,18 @@ const LandingPage = lazy(() =>
   import('../components/landing/index.js').then(m => ({ default: m.LandingPage })),
 );
 
+// Public legal pages
+const PrivacyPage = lazy(() =>
+  import('../components/legal/index.js').then(m => ({
+    default: () => <m.LegalPage doc="privacy" />,
+  })),
+);
+const TermsPage = lazy(() =>
+  import('../components/legal/index.js').then(m => ({
+    default: () => <m.LegalPage doc="terms" />,
+  })),
+);
+
 /**
  * Helper to wrap components with Suspense
  */
@@ -273,6 +285,23 @@ export const routes: RouteObject[] = [
         element: (
           <LandingRoute>{withSuspense(LandingPage, <div className="min-h-screen" />)}</LandingRoute>
         ),
+      },
+
+      // Privacy policy and terms of service: public, with or without a session (Google's sign-in
+      // consent screen links to both).
+      {
+        path: ROUTES.PRIVACY,
+        element: withSuspense(PrivacyPage, <div className="min-h-screen" />),
+        handle: {
+          title: 'Privacy Policy',
+        },
+      },
+      {
+        path: ROUTES.TERMS,
+        element: withSuspense(TermsPage, <div className="min-h-screen" />),
+        handle: {
+          title: 'Terms of Service',
+        },
       },
 
       // Public routes (login, error pages)

@@ -1,5 +1,5 @@
 import { Injectable, Scope } from 'graphql-modules';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import type {
   AmexTransactionInput,
   ChangedField,

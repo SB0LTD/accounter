@@ -1,14 +1,16 @@
-import { StrictMode, useEffect } from 'react';
+import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { routes } from './router/config.js';
 import './index.css';
 import 'json-bigint-patch';
-import { ROUTES } from '@/router/routes.js';
 import { SessionExpiryDialog } from './components/session-expiry-dialog.js';
-import { createAuth0AccessTokenProvider } from './lib/auth0-token-provider.js';
+import { FirebaseAuthProvider } from './lib/firebase-auth.js';
+import { reloadOnStaleChunk } from './lib/reload-on-stale-chunk.js';
+import { FirebaseUrqlTokenBridge } from './providers/firebase-token-bridge.js';
 import { setUrqlAccessTokenProvider } from './providers/urql.js';
+
+reloadOnStaleChunk();
 
 const rootElement = document.getElementById('root');
 const root = createRoot(rootElement!);
@@ -16,36 +18,6 @@ const isDevAuthEnabled = import.meta.env.VITE_DEV_AUTH === '1';
 
 // Create router with object-based configuration
 const router = createBrowserRouter(routes);
-
-const domain = import.meta.env.VITE_AUTH0_DOMAIN;
-const clientId = import.meta.env.VITE_AUTH0_FRONTEND_CLIENT_ID;
-const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
-const redirectUri = `${window.location.origin}${ROUTES.AUTH_CALLBACK}`;
-const shouldSkipRedirectCallback = window.location.pathname.startsWith(ROUTES.AUTH_CALLBACK);
-
-if (!domain || !clientId || !audience) {
-  console.warn('Auth0 environment variables not set. Auth0 login will fail.');
-}
-
-function Auth0UrqlTokenBridge() {
-  const { getAccessTokenSilently } = useAuth0();
-
-  // Register token provider during render so route loaders can read it immediately.
-  setUrqlAccessTokenProvider(createAuth0AccessTokenProvider(getAccessTokenSilently, audience));
-
-  useEffect(() => {
-    return () => {
-      setUrqlAccessTokenProvider(null);
-    };
-  }, []);
-
-  return (
-    <>
-      <RouterProvider router={router} />
-      <SessionExpiryDialog />
-    </>
-  );
-}
 
 function DevAuthApp() {
   // Dev auth mode does not require token provider wiring.
@@ -58,20 +30,12 @@ root.render(
     {isDevAuthEnabled ? (
       <DevAuthApp />
     ) : (
-      <Auth0Provider
-        domain={domain}
-        clientId={clientId}
-        authorizationParams={{
-          redirect_uri: redirectUri,
-          audience,
-          scope: 'openid profile email offline_access',
-        }}
-        useRefreshTokens
-        cacheLocation="localstorage"
-        skipRedirectCallback={shouldSkipRedirectCallback}
-      >
-        <Auth0UrqlTokenBridge />
-      </Auth0Provider>
+      <FirebaseAuthProvider>
+        <FirebaseUrqlTokenBridge>
+          <RouterProvider router={router} />
+          <SessionExpiryDialog />
+        </FirebaseUrqlTokenBridge>
+      </FirebaseAuthProvider>
     )}
   </StrictMode>,
 );

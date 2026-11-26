@@ -2,7 +2,7 @@ import DataLoader from 'dataloader';
 import { format, subHours } from 'date-fns';
 import { GraphQLError } from 'graphql';
 import { Injectable, Scope } from 'graphql-modules';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import { Currency } from '../../../shared/enums.js';
 import { AdminContextProvider } from '../../admin-context/providers/admin-context.provider.js';
 import { CoinMarketCapProvider } from '../../app-providers/coinmarketcap.js';

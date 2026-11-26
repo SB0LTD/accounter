@@ -8,14 +8,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ROUTES } from '../../../router/routes.js';
 import { WelcomePage } from '../welcome.js';
 
-const { useAuth0Mock, useViewerMock, useLogoutMock } = vi.hoisted(() => ({
-  useAuth0Mock: vi.fn(),
+const { useFirebaseAuthMock, useViewerMock, useLogoutMock } = vi.hoisted(() => ({
+  useFirebaseAuthMock: vi.fn(),
   useViewerMock: vi.fn(),
   useLogoutMock: vi.fn(),
 }));
 
-vi.mock('@auth0/auth0-react', () => ({
-  useAuth0: useAuth0Mock,
+vi.mock('../../../lib/firebase-auth.js', () => ({
+  useFirebaseAuth: useFirebaseAuthMock,
 }));
 
 vi.mock('../../../hooks/use-viewer.js', () => ({
@@ -24,6 +24,15 @@ vi.mock('../../../hooks/use-viewer.js', () => ({
 
 vi.mock('../../../hooks/use-logout.js', () => ({
   useLogout: useLogoutMock,
+}));
+
+// The "Create a business" card mutates through urql, which these tests do not provide.
+vi.mock('../../../hooks/use-bootstrap-new-client.js', () => ({
+  useBootstrapNewClient: () => ({
+    fetching: false,
+    error: undefined,
+    bootstrapNewClient: vi.fn(),
+  }),
 }));
 
 (
@@ -36,7 +45,7 @@ async function renderWelcome(
   viewerState: Record<string, unknown>,
   authState = { isAuthenticated: true, isLoading: false },
 ) {
-  useAuth0Mock.mockReturnValue(authState);
+  useFirebaseAuthMock.mockReturnValue(authState);
   useViewerMock.mockReturnValue(viewerState);
   useLogoutMock.mockReturnValue(vi.fn());
 
@@ -124,7 +133,7 @@ describe('WelcomePage', () => {
     await cleanup();
   });
 
-  it('holds the viewer query until Auth0 has resolved', async () => {
+  it('holds the viewer query until the stored session has loaded', async () => {
     // Asking before the token is attached would answer "no workspace" for a
     // perfectly good account.
     const { cleanup } = await renderWelcome(

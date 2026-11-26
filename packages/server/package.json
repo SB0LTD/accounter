@@ -19,6 +19,10 @@
     "build": "tsc -p tsconfig.build.json",
     "cleanup:expired-invitations": "tsx src/scripts/run-invitation-cleanup.ts",
     "dev": "nodemon --exec \"yarn build && yarn start | pino-pretty || exit 1\" --watch 'src/**/*' --watch '../green-invoice-graphql/dist/**' --watch '../opcn1214-generator/dist/**' --watch '../pcn874-generator/dist/**' --watch '../shaam6111-generator/dist/**' --watch '../shaam-uniform-format-generator/dist/**' --delay 1 -e ts,tsx,mts,js",
+    "firestore:catalog": "tsx scripts/firestore/dump-catalog.ts",
+    "firestore:fixtures": "tsx scripts/firestore/apply-fixtures.ts",
+    "firestore:queries": "tsx scripts/firestore/index-queries.ts",
+    "firestore:verify": "tsx scripts/firestore/verify.ts",
     "generate": "yarn generate:all",
     "generate:sql": "yarn pgtyped",
     "generate:sql:watch": "yarn pgtyped:watch",
@@ -32,7 +36,10 @@
     "server:dev": "yarn dev",
     "start": "node --import ./dist/bootstrap-telemetry.js dist/index.js",
     "typecheck": "tsc --noEmit",
-    "validate:demo": "tsx src/demo-fixtures/validate-demo-data.ts"
+    "validate:demo": "tsx src/demo-fixtures/validate-demo-data.ts",
+    "firestore:import": "tsx scripts/firestore/import-from-postgres.ts",
+    "firestore:bootstrap-db": "tsx scripts/firestore/prepare-bootstrap-db.ts",
+    "firestore:add-super-admin": "tsx scripts/firestore/add-super-admin.ts"
   },
   "dependencies": {
     "@accounter/green-invoice-graphql": "workspace:^",
@@ -64,6 +71,7 @@
     "dataloader": "2.2.3",
     "date-fns": "4.4.0",
     "dotenv": "18.0.10",
+    "firebase-admin": "14.5.1",
     "graphql": "16.15.0",
     "graphql-modules": "4.0.0",
     "graphql-scalars": "2.0.1",
