@@ -20,7 +20,7 @@ import {
 
 type QueryableDB = Pick<DBProvider, 'query'>;
 
-type JwtIdentity = {
+export type JwtIdentity = {
   auth0UserId: string;
   email: string | null;
   emailVerified: boolean;
@@ -144,6 +144,31 @@ export class AuthContextProvider {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Gives a verified super-admin who belongs to no business an operator context for the rest of
+   * this operation: their identity, a stable local user id derived from it, and no tenant (an empty
+   * business id, so RLS shows them no business data). Only SuperAdminProvider calls this, after
+   * checking `super_admins`; it is what lets the very first business be created from the app.
+   */
+  public elevateUnprovisionedSuperAdmin(identity: JwtIdentity, userId: string): AuthContext {
+    const context: AuthContext = {
+      authType: 'jwt',
+      token: this.rawAuth.token,
+      user: {
+        userId,
+        email: identity.email ?? '',
+        roleId: 'super_admin',
+        permissions: [],
+        emailVerified: identity.emailVerified,
+        permissionsVersion: 0,
+        auth0UserId: identity.auth0UserId,
+      },
+      tenant: { businessId: '' },
+    };
+    this.cachedContext = context;
+    return context;
   }
 
   public async getAuthContext(): Promise<AuthContext | null> {

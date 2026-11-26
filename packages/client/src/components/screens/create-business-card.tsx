@@ -1,6 +1,5 @@
 import { useState, type ReactElement } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { TimelessDateString } from '../../helpers/dates.js';
@@ -43,7 +42,6 @@ type FormValues = z.infer<typeof formSchema>;
  * Shown to anyone without a workspace; the API refuses everyone but super-admins.
  */
 export function CreateBusinessCard({ email }: { email: string | null }): ReactElement {
-  const navigate = useNavigate();
   const { fetching, bootstrapNewClient } = useBootstrapNewClient();
   const [invitation, setInvitation] = useState<{ link: string; ownerEmail: string } | null>(null);
   const form = useForm<FormValues>({
@@ -74,7 +72,9 @@ export function CreateBusinessCard({ email }: { email: string | null }): ReactEl
     if (!result) return;
     const path = ROUTES.ACCEPT_INVITATION(result.invitationToken);
     if (email != null && values.ownerEmail.toLowerCase() === email.toLowerCase()) {
-      navigate(path);
+      // The creating super-admin is made a member of the new business with the owner's role, so
+      // they need no invitation: reload into the app so the new membership is picked up.
+      window.location.assign(ROUTES.APP_HOME);
     } else {
       setInvitation({ link: `${window.location.origin}${path}`, ownerEmail: values.ownerEmail });
     }
