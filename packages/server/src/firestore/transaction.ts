@@ -198,6 +198,16 @@ function uniqueRules(info: TableInfo): UniqueRule[] {
   return rules;
 }
 
+/**
+ * Tables with an `allow_bootstrap_root` policy, and the commands it permits: a business may write its
+ * own root row (`id = current_business_id`) before it owns itself.
+ * financial_entities: every command; businesses: INSERT only.
+ */
+const BOOTSTRAP_ROOT: Record<string, readonly ('insert' | 'update')[]> = {
+  financial_entities: ['insert', 'update'],
+  businesses: ['insert'],
+};
+
 const rulesCache = new Map<string, UniqueRule[]>();
 function rulesFor(info: TableInfo): UniqueRule[] {
   let rules = rulesCache.get(info.name);
@@ -294,16 +304,23 @@ export class Transaction {
   private partitionOf(info: TableInfo, row: AnyRow): string {
     if (info.tenancy === 'global') return '';
     const owner = row[info.ownerColumn!];
-    if (typeof owner !== 'string' || !owner) throw rlsViolation(info.name);
-    return owner;
+    if (typeof owner === 'string' && owner) return owner;
+    // A business's own root row is written before it owns itself (`allow_bootstrap_root`): it lives
+    // in the business's own partition, where it stays once `owner_id = id` is set.
+    if (BOOTSTRAP_ROOT[info.name] && typeof row.id === 'string' && row.id) return row.id;
+    throw rlsViolation(info.name);
   }
 
   /** RLS `WITH CHECK`: the new row must belong to the current business. */
-  private checkWrite(info: TableInfo, row: AnyRow, bypass: boolean) {
+  private checkWrite(info: TableInfo, row: AnyRow, bypass: boolean, command: 'insert' | 'update') {
     if (bypass) return;
     const { businessId } = this.ctx;
     if (info.tenancy === 'owner') {
-      if (!businessId || row[info.ownerColumn!] !== businessId) throw rlsViolation(info.name);
+      if (!businessId) throw rlsViolation(info.name);
+      if (row[info.ownerColumn!] === businessId) return;
+      // `allow_bootstrap_root`: a business may write its own root row whoever owns it.
+      if (BOOTSTRAP_ROOT[info.name]?.includes(command) && row.id === businessId) return;
+      throw rlsViolation(info.name);
     } else if (info.writeGuard === 'readonly') {
       throw rlsViolation(info.name);
     } else if (info.writeGuard) {
@@ -427,8 +444,9 @@ export class Transaction {
   ): Promise<StoredRow | null> {
     const info = tableInfo(table);
     const row = this.buildRow(info, values, null);
+    // Postgres checks the RLS policy before NOT NULL and CHECK constraints.
+    this.checkWrite(info, row, options.bypassRls ?? false, 'insert');
     this.validate(info, row);
-    this.checkWrite(info, row, options.bypassRls ?? false);
     const partition = this.partitionOf(info, row);
     const docId = docIdFor(info, row);
     const sealed = sealRow(row as StoredRow, docId);
@@ -464,8 +482,8 @@ export class Transaction {
     const oldPartition = this.partitionOf(info, existing);
     let row = this.buildRow(info, patch, existing);
     row = this.store.hooks.beforeUpdate(this, info.name, existing, row);
+    this.checkWrite(info, row, options.bypassRls ?? false, 'update');
     this.validate(info, row);
-    this.checkWrite(info, row, options.bypassRls ?? false);
     const partition = this.partitionOf(info, row);
     const docId = info.primaryKey ? docIdFor(info, row) : oldDocId;
     const sealed = sealRow(row as StoredRow, docId);
@@ -524,8 +542,23 @@ export class Transaction {
   }
 
   /** DELETE one row, applying the ON DELETE actions of the foreign keys that reference it. */
-  async delete(table: string, existing: StoredRow): Promise<StoredRow> {
+  async delete(
+    table: string,
+    existing: StoredRow,
+    options: { bypassRls?: boolean } = {},
+  ): Promise<StoredRow> {
     const info = tableInfo(table);
+    // The restrictive `tenant_isolation_delete` policies: a request deletes only rows of the current
+    // business, even when its read scope covers more. Ports filter first, as the DELETE's USING
+    // would; reaching here with another business's row is refused rather than skipped, so a port
+    // bug can never delete another tenant's data. FK actions (cascades) run without RLS.
+    if (!options.bypassRls && info.tenancy === 'owner') {
+      const owner = existing[info.ownerColumn!];
+      const ownRoot = BOOTSTRAP_ROOT[info.name] && existing.id === this.ctx.businessId;
+      if (!this.ctx.businessId || (owner !== this.ctx.businessId && !ownRoot)) {
+        throw rlsViolation(info.name);
+      }
+    }
     const docId = existing[DOC_ID] ?? docIdFor(info, existing);
     const partition = this.partitionOf(info, existing);
     const view = await this.view(table, partition);
@@ -537,7 +570,7 @@ export class Transaction {
       if (children.length === 0) continue;
       switch (fk.onDelete) {
         case 'cascade':
-          for (const child of children) await this.delete(childTable, child);
+          for (const child of children) await this.delete(childTable, child, { bypassRls: true });
           break;
         case 'setnull':
           for (const child of children) {
