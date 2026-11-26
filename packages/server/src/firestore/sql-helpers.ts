@@ -4,9 +4,9 @@
  */
 import { Numeric, type NumericInput } from './numeric.js';
 import type { ColumnKind } from './schema/catalog-types.js';
-import { compareValues, equalityKey, toDateString } from './values.js';
+import { compareEnum, compareValues, equalityKey, toDateString } from './values.js';
 
-export { orderBy, compareValues, equalityKey, toDateString } from './values.js';
+export { orderBy, compareValues, compareEnum, equalityKey, toDateString } from './values.js';
 export { Numeric, num, sumNumeric, avgNumeric } from './numeric.js';
 
 // ---------------------------------------------------------------------------------------------
@@ -173,7 +173,7 @@ export function maxOf<T>(values: Iterable<T | null | undefined>, kind?: ColumnKi
  */
 export function arrayAggDistinct<T>(
   values: readonly (T | null | undefined)[],
-  kind?: ColumnKind,
+  kind?: ColumnKind | { enumType: string },
 ): (T | null)[] | null {
   if (values.length === 0) return null;
   const seen = new Map<string, T>();
@@ -181,11 +181,15 @@ export function arrayAggDistinct<T>(
   for (const value of values) {
     if (value == null) hasNull = true;
     else {
-      const key = equalityKey(value, kind)!;
+      const key = equalityKey(value, typeof kind === 'object' ? undefined : kind)!;
       if (!seen.has(key)) seen.set(key, value);
     }
   }
-  const sorted: (T | null)[] = [...seen.values()].sort((a, b) => compareValues(a, b, kind));
+  const sorted: (T | null)[] = [...seen.values()].sort((a, b) =>
+    typeof kind === 'object'
+      ? compareEnum(kind.enumType, String(a), String(b))
+      : compareValues(a, b, kind),
+  );
   if (hasNull) sorted.push(null);
   return sorted;
 }

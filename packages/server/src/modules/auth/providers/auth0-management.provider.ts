@@ -2,6 +2,7 @@ import { ManagementClient } from 'auth0';
 import { Inject, Injectable, Scope } from 'graphql-modules';
 import { ENVIRONMENT } from '../../../shared/tokens.js';
 import type { Environment } from '../../../shared/types/index.js';
+import { FirebaseUserManagement } from './firebase-user-management.js';
 
 const DATABASE_CONNECTION = 'Username-Password-Authentication';
 const REGISTERED_BY_ACCOUNTER = 'accounter';
@@ -38,6 +39,8 @@ function pickUserForEmail(users: Auth0UserSummary[]): string | null {
 })
 export class Auth0ManagementProvider {
   private client: ManagementClient | undefined;
+  /** Set when Firebase Authentication replaces Auth0 (FIREBASE_AUTH_PROJECT_ID). */
+  private firebase: FirebaseUserManagement | undefined;
 
   // Short-lived cache of Auth0 profile lookups. The provider is a Singleton, so
   // this is shared across requests to avoid hammering the Auth0 Management API
@@ -54,7 +57,12 @@ export class Auth0ManagementProvider {
   }
 
   private initializeClient() {
-    if (this.env.auth0) {
+    if (this.env.firebaseAuth) {
+      this.firebase = new FirebaseUserManagement(
+        this.env.firebaseAuth.projectId,
+        this.env.general.frontendUrl,
+      );
+    } else if (this.env.auth0) {
       this.client = new ManagementClient({
         domain: this.env.auth0.domain,
         clientId: this.env.auth0.clientId,
@@ -74,6 +82,7 @@ export class Auth0ManagementProvider {
   }
 
   async getUserByEmail(email: string): Promise<string | null> {
+    if (this.firebase) return this.firebase.getUserByEmail(email);
     const client = this.getClient();
     try {
       const users = await client.users.listUsersByEmail({ email });
@@ -89,6 +98,7 @@ export class Auth0ManagementProvider {
   async getUserEmailById(
     auth0UserId: string,
   ): Promise<{ email: string | null; emailVerified: boolean } | null> {
+    if (this.firebase) return this.firebase.getUserEmailById(auth0UserId);
     const client = this.getClient();
 
     try {
@@ -111,6 +121,7 @@ export class Auth0ManagementProvider {
   async getUserProfileById(
     auth0UserId: string,
   ): Promise<{ email: string | null; name: string | null } | null> {
+    if (this.firebase) return this.firebase.getUserProfileById(auth0UserId);
     const cached = this.profileCache.get(auth0UserId);
     if (cached && cached.expiresAt > Date.now()) {
       return cached.profile;
@@ -143,6 +154,7 @@ export class Auth0ManagementProvider {
    * the account alone when in doubt.
    */
   async isUnusedInvitationUser(auth0UserId: string): Promise<boolean> {
+    if (this.firebase) return this.firebase.isUnusedInvitationUser(auth0UserId);
     const client = this.getClient();
 
     try {
@@ -168,6 +180,7 @@ export class Auth0ManagementProvider {
     email: string,
     password?: string,
   ): Promise<{ userId: string; created: boolean }> {
+    if (this.firebase) return this.firebase.createBlockedUser(email, password);
     const client = this.getClient();
 
     const existingUserId = await this.getUserByEmail(email);
@@ -201,6 +214,7 @@ export class Auth0ManagementProvider {
   }
 
   async unblockUser(auth0UserId: string): Promise<void> {
+    if (this.firebase) return this.firebase.unblockUser(auth0UserId);
     const client = this.getClient();
     try {
       await client.users.update(auth0UserId, { blocked: false });
@@ -212,6 +226,7 @@ export class Auth0ManagementProvider {
     }
   }
   async blockUser(auth0UserId: string): Promise<void> {
+    if (this.firebase) return this.firebase.blockUser(auth0UserId);
     const client = this.getClient();
     try {
       await client.users.update(auth0UserId, { blocked: true });
@@ -221,6 +236,7 @@ export class Auth0ManagementProvider {
     }
   }
   async deleteUser(auth0UserId: string): Promise<void> {
+    if (this.firebase) return this.firebase.deleteUser(auth0UserId);
     const client = this.getClient();
     try {
       // Cleanup for expired invitations
@@ -232,6 +248,7 @@ export class Auth0ManagementProvider {
   }
 
   async sendPasswordResetEmail(auth0UserId: string): Promise<string> {
+    if (this.firebase) return this.firebase.sendPasswordResetEmail(auth0UserId);
     const client = this.getClient();
     try {
       const { ticket } = await client.tickets.changePassword({

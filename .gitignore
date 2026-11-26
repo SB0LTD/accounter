@@ -28,3 +28,6 @@ CLAUDE.local.md
 
 **/.wrangler
 packages/email-ingestion-gateway/.dev.vars
+
+# Firestore deploy staging (deploy/stage-server.mjs)
+deploy/.build/

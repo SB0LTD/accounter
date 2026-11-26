@@ -4,7 +4,7 @@
  */
 import { Timestamp } from 'firebase-admin/firestore';
 import { v4 as uuidv4, v7 as uuidv7 } from 'uuid';
-import type { AnyRow, TableInfo } from './catalog.js';
+import { enums, type AnyRow, type TableInfo } from './catalog.js';
 import { Numeric } from './numeric.js';
 import type { ColumnKind, ColumnMeta } from './schema/catalog-types.js';
 
@@ -228,11 +228,24 @@ export function equalityKey(value: unknown, kind?: ColumnKind): string | null {
   return `${typeof value}:${String(value)}`;
 }
 
-const collator = new Intl.Collator('en-US', { sensitivity: 'variant', numeric: false });
-
-/** Text ordering for ORDER BY. One place, so the collation can be matched to production later. */
+/**
+ * Text ordering for ORDER BY: code-point order, which is what Postgres does under the `C` / `C.UTF-8`
+ * collation the verification databases use, so ports can be proven exactly. One place, so a
+ * friendlier collation (and a matching ICU collation in the oracle) can replace it later.
+ */
 export function compareText(a: string, b: string): number {
-  return collator.compare(a, b);
+  // UTF-8 byte order equals code-point order; JS compares UTF-16 code units, which differs only for
+  // characters outside the BMP, so compare code points explicitly.
+  if (a === b) return 0;
+  const ia = a[Symbol.iterator]();
+  const ib = b[Symbol.iterator]();
+  for (;;) {
+    const ca = ia.next();
+    const cb = ib.next();
+    if (ca.done || cb.done) return ca.done ? (cb.done ? 0 : -1) : 1;
+    const d = ca.value.codePointAt(0)! - cb.value.codePointAt(0)!;
+    if (d !== 0) return d;
+  }
 }
 
 /** Postgres ordering of two non-null values of the same type. */
@@ -259,6 +272,23 @@ export interface OrderTerm<T> {
   /** Postgres default: NULLS LAST for ASC, NULLS FIRST for DESC. */
   nulls?: 'first' | 'last';
   kind?: ColumnKind;
+  /**
+   * The column's enum type (e.g. `'currency'`, `'document_type'`): Postgres orders enum values by
+   * their declaration order, not alphabetically.
+   */
+  enumType?: string;
+}
+
+/** Postgres ordering of two labels of an enum type: by declaration order. */
+export function compareEnum(enumType: string, a: string, b: string): number {
+  const labels = enums[enumType];
+  if (!labels) throw new Error(`type "accounter_schema.${enumType}" is not an enum`);
+  const ia = labels.indexOf(a);
+  const ib = labels.indexOf(b);
+  if (ia < 0 || ib < 0) {
+    throw new Error(`invalid input value for enum ${enumType}: "${ia < 0 ? a : b}"`);
+  }
+  return ia - ib;
 }
 
 /** ORDER BY with Postgres's null placement. Stable, like a sort over an already-ordered input. */
@@ -272,7 +302,9 @@ export function orderBy<T>(rows: readonly T[], terms: OrderTerm<T>[]): T[] {
         if (a == null && b == null) continue;
         return (a == null ? -1 : 1) * (nullsFirst ? 1 : -1);
       }
-      const c = compareValues(a, b, term.kind);
+      const c = term.enumType
+        ? compareEnum(term.enumType, String(a), String(b))
+        : compareValues(a, b, term.kind);
       if (c !== 0) return term.desc ? -c : c;
     }
     return 0;

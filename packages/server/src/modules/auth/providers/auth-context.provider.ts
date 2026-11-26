@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { GraphQLError } from 'graphql';
 import { CONTEXT, Inject, Injectable, Optional, Scope } from 'graphql-modules';
-import { createRemoteJWKSet, errors as joseErrors, jwtVerify } from 'jose';
+import { errors as joseErrors } from 'jose';
 import type { RawAuth } from '../../../plugins/auth-plugin.js';
 import {
   narrowReadScope,
@@ -13,9 +13,10 @@ import type { AuthContext, BusinessMembership } from '../../../shared/types/auth
 import type { Environment } from '../../../shared/types/index.js';
 import { DBProvider } from '../../app-providers/db.provider.js';
 import { ALLOWED_API_KEY_ROLES } from '../helpers/api-keys.helper.js';
-
-// Global cache for JWKS functions to prevent re-fetching on every request
-const jwksCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
+import {
+  identityProviderConfigured,
+  verifyIdentityToken,
+} from '../helpers/verify-identity-token.helper.js';
 
 type QueryableDB = Pick<DBProvider, 'query'>;
 
@@ -121,22 +122,11 @@ export class AuthContextProvider {
     }
 
     try {
-      if (!this.env.auth0) {
+      if (!identityProviderConfigured(this.env)) {
         return null;
       }
 
-      const domain = this.env.auth0.domain;
-      let JWKS = jwksCache.get(domain);
-
-      if (!JWKS) {
-        JWKS = createRemoteJWKSet(new URL(`https://${domain}/.well-known/jwks.json`));
-        jwksCache.set(domain, JWKS);
-      }
-
-      const { payload } = await jwtVerify(token, JWKS, {
-        issuer: `https://${domain}/`,
-        audience: this.env.auth0.audience,
-      });
+      const payload = await verifyIdentityToken(this.env, token);
 
       const auth0UserId = payload.sub;
       if (!auth0UserId) {
@@ -438,25 +428,10 @@ export class AuthContextProvider {
     }
 
     try {
-      if (!this.env.auth0) {
-        throw new Error('Auth0 configuration is missing');
-      }
+      // 1. Verify the token (Firebase Authentication or Auth0, whichever is configured)
+      const payload = await verifyIdentityToken(this.env, token);
 
-      // 1. Verify JWT signature using Auth0 JWKS
-      const domain = this.env.auth0.domain;
-      let JWKS = jwksCache.get(domain);
-
-      if (!JWKS) {
-        JWKS = createRemoteJWKSet(new URL(`https://${domain}/.well-known/jwks.json`));
-        jwksCache.set(domain, JWKS);
-      }
-
-      const { payload } = await jwtVerify(token, JWKS, {
-        issuer: `https://${domain}/`,
-        audience: this.env.auth0.audience,
-      });
-
-      // 2. Extract Auth0 user ID
+      // 2. Extract the identity provider's user ID
       const auth0UserId = payload.sub;
 
       if (!auth0UserId) {

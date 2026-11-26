@@ -97,7 +97,7 @@ function hasTopLevelOrderBy(text: string): boolean {
   return found;
 }
 
-const isWrite = (text: string) => /\b(insert\s+into|update\s+\w|delete\s+from)\b/i.test(text);
+const isWrite = (text: string) => /\b(insert\s+into|update\s+[\w.]+|delete\s+from)\b/i.test(text);
 
 const GENERATED = /^(id|.*_at)$/;
 
