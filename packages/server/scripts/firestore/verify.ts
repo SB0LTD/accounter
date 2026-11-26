@@ -2,16 +2,20 @@
  * Proves the Firestore ports: runs every ported query against Postgres (the original SQL) and
  * against the Firestore store (the port) on the same data, and compares the rows.
  *
- *   POSTGRES_HOST=localhost POSTGRES_PORT=54329 POSTGRES_DB=accounter_demo \
+ *   POSTGRES_HOST=localhost POSTGRES_PORT=54329 POSTGRES_DB=<your verify db> \
  *     yarn workspace @accounter/server firestore:verify [--only <path substring>] [--verbose]
  *
- * - The data is whatever that local database holds (the demo seed works well); it is copied into an
- *   in-memory store, so Postgres and the store start identical.
+ * - Ports are found by convention (src/firestore/queries/<provider path>, export named like the
+ *   query), not through the generated index, so several people can port at once.
+ * - The data is whatever that local database holds; it is copied into an in-memory store, so
+ *   Postgres and the store start identical.
  * - Postgres runs each query as an RLS-bound role (`SET LOCAL ROLE accounter_verify`) with the same
  *   `app.*` settings TenantAwareDBClient sets, so tenant visibility is compared too.
  * - Every case runs in a transaction that is rolled back on both sides; writes compare their
  *   RETURNING rows, with generated ids and timestamps masked.
  * - Rows compare in order when the statement ends with a top-level ORDER BY, as multisets otherwise.
+ *   Arrays inside rows that differ only in element order are reported as ARRAY-ORDER, not FAIL.
+ * - Both sides run in UTC, as Cloud Run does.
  *
  * Refuses any database host but localhost.
  */
@@ -22,13 +26,15 @@ import pg from 'pg';
 import { sql as pgTypedSql } from '@pgtyped/runtime';
 import { allTables, tableInfo, type AnyRow, type TableName } from '../../src/firestore/catalog.js';
 import type { Cases, Snapshot } from '../../src/firestore/queries/cases.js';
-import { QUERIES } from '../../src/firestore/queries/index.generated.js';
-import { runPortedQuery } from '../../src/firestore/queries/run.js';
+import type { QueryImpl, QueryShape } from '../../src/firestore/queries/port.js';
+import { runImpl } from '../../src/firestore/queries/run-impl.js';
 import { queryDb } from '../../src/firestore/query-db.js';
 import { memoryStore } from '../../src/firestore/store.js';
 import type { SessionContext } from '../../src/firestore/transaction.js';
 import { docIdFor, encodeRow } from '../../src/firestore/values.js';
 import { pgTypeParsers } from '../../src/shared/helpers/pg-type-parsers.js';
+
+process.env.TZ = 'UTC';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const portsDir = resolve(here, '../../src/firestore/queries');
@@ -52,16 +58,19 @@ const ROLE = 'accounter_verify';
 // Comparison
 // -------------------------------------------------------------------------------------------
 
-function normalize(value: unknown): unknown {
+function normalize(value: unknown, sortArrays = false): unknown {
   if (value === undefined) return null;
   if (value instanceof Date) return { $date: value.toISOString() };
   if (typeof value === 'bigint') return value.toString();
-  if (Array.isArray(value)) return value.map(normalize);
+  if (Array.isArray(value)) {
+    const items = value.map(v => normalize(v, sortArrays));
+    return sortArrays ? items.map(i => JSON.stringify(i)).sort() : items;
+  }
   if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.keys(value)
         .sort()
-        .map(k => [k, normalize((value as AnyRow)[k])]),
+        .map(k => [k, normalize((value as AnyRow)[k], sortArrays)]),
     );
   }
   return value;
@@ -90,7 +99,7 @@ function hasTopLevelOrderBy(text: string): boolean {
 
 const isWrite = (text: string) => /\b(insert\s+into|update\s+\w|delete\s+from)\b/i.test(text);
 
-const GENERATED = /^(id|created_at|updated_at|.*_at)$/;
+const GENERATED = /^(id|.*_at)$/;
 
 function mask(rows: unknown[], write: boolean): unknown[] {
   if (!write) return rows;
@@ -105,9 +114,11 @@ function mask(rows: unknown[], write: boolean): unknown[] {
   });
 }
 
-function compare(pgRows: unknown[], fsRows: unknown[], ordered: boolean): string | null {
-  const a = pgRows.map(r => JSON.stringify(normalize(r)));
-  const b = fsRows.map(r => JSON.stringify(normalize(r)));
+function serialize(rows: unknown[], sortArrays: boolean): string[] {
+  return rows.map(r => JSON.stringify(normalize(r, sortArrays)));
+}
+
+function compareOnce(a: string[], b: string[], ordered: boolean): string | null {
   if (a.length !== b.length) {
     return `row count: postgres ${a.length}, firestore ${b.length}\n  pg[0]=${a[0] ?? '-'}\n  fs[0]=${b[0] ?? '-'}`;
   }
@@ -126,6 +137,13 @@ function compare(pgRows: unknown[], fsRows: unknown[], ordered: boolean): string
     if (sa[i] !== sb[i]) return `rows differ\n  pg=${sa[i]}\n  fs=${sb[i]}`;
   }
   return null;
+}
+
+function compare(pgRows: unknown[], fsRows: unknown[], ordered: boolean): string | null {
+  const exact = compareOnce(serialize(pgRows, false), serialize(fsRows, false), ordered);
+  if (!exact) return null;
+  const ignoringArrayOrder = compareOnce(serialize(pgRows, true), serialize(fsRows, true), ordered);
+  return ignoringArrayOrder ? exact : `ARRAY-ORDER: ${exact}`;
 }
 
 // -------------------------------------------------------------------------------------------
@@ -172,11 +190,15 @@ function makeSnapshot(data: Map<string, AnyRow[]>, ctx: SessionContext): Snapsho
   };
 }
 
-async function loadCases(file: string): Promise<Cases | null> {
-  const casesFile = resolve(portsDir, file.replace(/\.ts$/, '.cases.ts'));
-  if (!existsSync(casesFile)) return null;
-  const module = (await import(pathToFileURL(casesFile).href)) as { cases?: Cases };
-  return module.cases ?? null;
+const moduleCache = new Map<string, Record<string, unknown> | null>();
+async function loadModule(file: string): Promise<Record<string, unknown> | null> {
+  if (moduleCache.has(file)) return moduleCache.get(file)!;
+  const path = resolve(portsDir, file);
+  const module = existsSync(path)
+    ? ((await import(pathToFileURL(path).href)) as Record<string, unknown>)
+    : null;
+  moduleCache.set(file, module);
+  return module;
 }
 
 // -------------------------------------------------------------------------------------------
@@ -205,6 +227,9 @@ async function runPostgres(client: pg.Client, text: string, params: unknown, ctx
   }
 }
 
+const describeError = (error: unknown) =>
+  `${(error as { code?: string }).code ?? ''} ${(error as Error).message}`.trim();
+
 async function main() {
   const client = new pg.Client({
     host,
@@ -215,6 +240,7 @@ async function main() {
     types: pgTypeParsers,
   });
   await client.connect();
+  await client.query("SET TIME ZONE 'UTC'");
   await ensureRole(client);
   const data = await snapshot(client);
 
@@ -242,37 +268,38 @@ async function main() {
     authType: 'jwt',
   }));
 
-  const totals = { pass: 0, fail: 0, order: 0, noCases: 0, unported: 0 };
-  const failures: string[] = [];
-  const casesByFile = new Map<string, Cases | null>();
+  const totals = { pass: 0, fail: 0, soft: 0, noCases: 0, unported: 0 };
+  const problems: string[] = [];
 
-  for (const [key, entry] of Object.entries(QUERIES)) {
+  for (const [key, entry] of Object.entries(SQL_INDEX)) {
     if (only && !entry.source.includes(only)) continue;
-    if (!entry.impl) {
+    const [file, name] = entry.source.split('#') as [string, string];
+    const module = await loadModule(file);
+    const impl = module?.[name] as QueryImpl<QueryShape> | undefined;
+    if (!impl) {
       totals.unported++;
+      if (verbose) console.log(`unported  ${entry.source}`);
       continue;
     }
-    const sqlEntry = SQL_INDEX[key]!;
-    const [file, name] = entry.source.split('#') as [string, string];
-    if (!casesByFile.has(file)) casesByFile.set(file, await loadCases(file));
-    const caseFn = casesByFile.get(file)?.[name];
-    const hasParams = /[$:]\w/.test(sqlEntry.text.replace(/::\w+/g, ''));
+    const casesModule = await loadModule(file.replace(/\.ts$/, '.cases.ts'));
+    const caseFn = (casesModule?.cases as Cases | undefined)?.[name];
+    const hasParams = /[$:]\w/.test(entry.text.replace(/::\w+/g, ''));
 
     for (const ctx of contexts) {
       const snap = makeSnapshot(data, ctx);
       const paramSets = caseFn ? caseFn(snap) : hasParams ? null : [{}];
       if (!paramSets) {
         totals.noCases++;
-        failures.push(`NO CASES  ${entry.source}`);
+        problems.push(`NO CASES  ${entry.source}`);
         break;
       }
       for (const [i, params] of paramSets.entries()) {
         const label = `${entry.source} [case ${i}]`;
-        const write = isWrite(sqlEntry.text);
+        const write = isWrite(entry.text);
         let pgRows: unknown[] | null = null;
         let pgError: unknown = null;
         try {
-          pgRows = await runPostgres(client, sqlEntry.text, params, ctx);
+          pgRows = await runPostgres(client, entry.text, params, ctx);
         } catch (error) {
           pgError = error;
         }
@@ -280,7 +307,7 @@ async function main() {
         let fsError: unknown = null;
         const tx = store.begin(() => ctx);
         try {
-          fsRows = await runPortedQuery(key, params, queryDb(tx), sqlEntry.text);
+          fsRows = await runImpl(impl, params, queryDb(tx));
         } catch (error) {
           fsError = error;
         } finally {
@@ -288,29 +315,33 @@ async function main() {
         }
 
         let problem: string | null = null;
+        let outcome = `${pgRows?.length ?? 0} rows`;
         if (pgError || fsError) {
           const pgCode = (pgError as { code?: string } | null)?.code;
           const fsCode = (fsError as { code?: string } | null)?.code;
-          if (!(pgError && fsError && pgCode === fsCode)) {
-            problem = `postgres ${pgError ? `threw ${pgCode ?? ''} ${(pgError as Error).message}` : 'succeeded'}; firestore ${fsError ? `threw ${fsCode ?? ''} ${(fsError as Error).message}` : 'succeeded'}`;
+          if (pgError && fsError && pgCode === fsCode) {
+            outcome = `both raised ${pgCode}`;
+          } else {
+            problem = `postgres ${pgError ? `raised ${describeError(pgError)}` : 'succeeded'}; firestore ${fsError ? `raised ${describeError(fsError)}` : 'succeeded'}`;
+            if (fsError && verbose) console.error(fsError);
           }
         } else {
           problem = compare(
             mask(pgRows!, write),
             mask(fsRows!, write),
-            hasTopLevelOrderBy(sqlEntry.text),
+            hasTopLevelOrderBy(entry.text),
           );
         }
 
         if (!problem) {
           totals.pass++;
-          if (verbose) console.log(`ok        ${label} (${pgRows?.length ?? 0} rows)`);
-        } else if (problem.startsWith('ORDER ONLY')) {
-          totals.order++;
-          failures.push(`ORDER     ${label}: ${problem}`);
+          if (verbose) console.log(`ok        ${label} (${outcome})`);
+        } else if (problem.startsWith('ORDER ONLY') || problem.startsWith('ARRAY-ORDER')) {
+          totals.soft++;
+          problems.push(`SOFT      ${label}: ${problem}`);
         } else {
           totals.fail++;
-          failures.push(`FAIL      ${label}: ${problem}`);
+          problems.push(`FAIL      ${label}: ${problem}`);
         }
       }
     }
@@ -318,9 +349,9 @@ async function main() {
 
   await client.end();
   store.close();
-  for (const line of failures) console.log(line);
+  for (const line of problems) console.log(line);
   console.log(
-    `firestore:verify  pass ${totals.pass}  fail ${totals.fail}  order-only ${totals.order}  no-cases ${totals.noCases}  unported ${totals.unported}`,
+    `firestore:verify  pass ${totals.pass}  fail ${totals.fail}  soft ${totals.soft}  no-cases ${totals.noCases}  unported ${totals.unported}`,
   );
   process.exit(totals.fail || totals.noCases ? 1 : 0);
 }

@@ -5,7 +5,7 @@ import type {
   IInsertChargeTagQuery,
   IUpdateChargeTagPartQuery,
 } from '../../../../../modules/tags/__generated__/charge-tags.types.js';
-import { port } from '../../../run.js';
+import { port } from '../../../port.js';
 
 /** SELECT * FROM charge_tags WHERE charge_id IN $$chargeIDs */
 export const getTagIdsByChargeIDs = port<IGetTagIdsByChargeIDsQuery>(async ({ chargeIDs }, db) =>

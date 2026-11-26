@@ -7,7 +7,7 @@ import type {
   IRenameTagQuery,
   IUpdateTagParentQuery,
 } from '../../../../../modules/tags/__generated__/tags.types.js';
-import { port } from '../../../run.js';
+import { port } from '../../../port.js';
 
 /** SELECT * FROM extended_tags */
 export const getAllTags = port<IGetAllTagsQuery>(async (_params, db) => db.views.extendedTags());

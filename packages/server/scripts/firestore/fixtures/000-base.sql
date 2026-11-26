@@ -4,6 +4,12 @@
 --
 -- The tenant is the demo seed's admin business (the single user_context owner).
 
+-- The views run as their owner. Here that is a superuser, which bypasses RLS; a deployed database
+-- applies it. Make them run as the caller so the oracle behaves like a deployed database.
+ALTER VIEW accounter_schema.extended_tags SET (security_invoker = true);
+ALTER VIEW accounter_schema.extended_charges SET (security_invoker = true);
+ALTER VIEW accounter_schema.extended_business_trip_transactions SET (security_invoker = true);
+
 DO $$
 DECLARE
   owner UUID := (SELECT owner_id FROM accounter_schema.user_context LIMIT 1);

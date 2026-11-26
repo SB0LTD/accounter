@@ -1,21 +1,14 @@
 /**
  * Dispatch from a query key to its ported implementation, and the result handling pg does: rows
- * are fresh objects the caller may change, and pgTyped's `!` / `?` column hints are stripped.
+ * are fresh objects the caller may change.
  */
 import { DbError } from '../errors.js';
 import type { QueryDb } from '../query-db.js';
 import { QUERIES } from './index.generated.js';
+import { runImpl } from './run-impl.js';
 
-export type QueryShape = { params: unknown; result: unknown };
-
-/** A ported query: the same parameters and result rows as the pgTyped query it replaces. */
-export type QueryImpl<Q extends QueryShape> = (
-  params: Q['params'],
-  db: QueryDb,
-) => Promise<readonly Q['result'][]>;
-
-/** Declares a port; the type ties it to the pgTyped query's generated types. */
-export const port = <Q extends QueryShape>(impl: QueryImpl<Q>): QueryImpl<Q> => impl;
+export type { QueryImpl, QueryShape } from './port.js';
+export { runImpl } from './run-impl.js';
 
 export async function runPortedQuery(
   key: string,
@@ -33,6 +26,5 @@ export async function runPortedQuery(
   if (!entry.impl) {
     throw new DbError(`Firestore store: query ${entry.source} is not ported yet`, '0A000');
   }
-  const rows = await entry.impl((params ?? {}) as never, db);
-  return rows.map(row => structuredClone(row) as Record<string, unknown>);
+  return runImpl(entry.impl, params, db);
 }

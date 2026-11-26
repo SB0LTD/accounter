@@ -1,10 +1,13 @@
 /**
- * Applies fixtures.sql to the local verification database. Refuses any host but localhost.
+ * Applies the verification fixtures (scripts/firestore/fixtures/*.sql, in name order) to a local
+ * database. Refuses any host but localhost.
  *
- *   POSTGRES_HOST=localhost POSTGRES_PORT=54329 POSTGRES_DB=accounter_demo \
- *     yarn workspace @accounter/server firestore:fixtures
+ *   POSTGRES_HOST=localhost POSTGRES_PORT=54329 POSTGRES_DB=<verify db> \
+ *     yarn workspace @accounter/server firestore:fixtures [--only <file name substring>]
+ *
+ * Every fixture file must be idempotent (ON CONFLICT DO NOTHING, fixed ids).
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
@@ -15,7 +18,14 @@ if (!['localhost', '127.0.0.1', '::1'].includes(host)) {
   process.exit(2);
 }
 
-const here = dirname(fileURLToPath(import.meta.url));
+const args = process.argv.slice(2);
+const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
+
+const dir = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures');
+const files = readdirSync(dir)
+  .filter(f => f.endsWith('.sql') && (!only || f.includes(only)))
+  .sort();
+
 const client = new pg.Client({
   host,
   port: Number(process.env.POSTGRES_PORT ?? 5432),
@@ -25,8 +35,10 @@ const client = new pg.Client({
 });
 await client.connect();
 try {
-  await client.query(readFileSync(resolve(here, 'fixtures.sql'), 'utf8'));
-  console.log('fixtures applied');
+  for (const file of files) {
+    await client.query(readFileSync(resolve(dir, file), 'utf8'));
+    console.log(`applied ${file}`);
+  }
 } finally {
   await client.end();
 }

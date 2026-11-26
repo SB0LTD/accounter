@@ -4,9 +4,12 @@
  *
  * Postgres views here run as their owner without `security_invoker`. On a superuser-owned database
  * (local dev) that makes them read every tenant; in a deployed database whose owner is subject to
- * the forced RLS they read the current tenant. The ports follow the deployed behaviour.
+ * the forced RLS they read the current tenant. The ports follow the deployed behaviour (and the
+ * verification database sets `security_invoker` to match).
  */
 import type { QueryDb } from '../query-db.js';
+import { extendedBusinessTripTransactions } from './extended-business-trip-transactions.js';
+import { extendedCharges } from './extended-charges.js';
 import { extendedTags, type ExtendedTagRow } from './extended-tags.js';
 
 export interface Views {
@@ -15,14 +18,10 @@ export interface Views {
   extendedBusinessTripTransactions(): Promise<readonly Record<string, unknown>[]>;
 }
 
-const notPorted = (name: string) => async () => {
-  throw new Error(`Firestore store: view ${name} is not ported yet`);
-};
-
 export function viewsFor(db: QueryDb): Views {
   return {
-    extendedCharges: notPorted('extended_charges'),
+    extendedCharges: () => extendedCharges(db),
     extendedTags: () => extendedTags(db),
-    extendedBusinessTripTransactions: notPorted('extended_business_trip_transactions'),
+    extendedBusinessTripTransactions: () => extendedBusinessTripTransactions(db),
   };
 }
