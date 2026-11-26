@@ -36,9 +36,27 @@ export interface QueryDb {
   readonly views: Views;
   /** The underlying transaction, for triggers and raw handlers. */
   readonly tx: Transaction;
+  /**
+   * `set_config(name, value, is_local)` on the request's session (e.g. `app.current_business_id`),
+   * for ports of queries that call it. Returns the value as set_config does ('' for NULL).
+   */
+  setConfig(name: string, value: unknown, isLocal: boolean): string;
 }
 
-export function queryDb(tx: Transaction): QueryDb {
+/** The session a port runs in: the Firestore client that sent the statement. */
+export interface QuerySession {
+  setConfig(name: string, value: unknown, isLocal: boolean): string;
+}
+
+const NO_SESSION: QuerySession = {
+  setConfig: () => {
+    throw new Error(
+      'Firestore store: set_config needs a client session (run through FirestoreClient)',
+    );
+  },
+};
+
+export function queryDb(tx: Transaction, session: QuerySession = NO_SESSION): QueryDb {
   const db: QueryDb = {
     get ctx() {
       return { ...tx.ctx, now: tx.time };
@@ -75,6 +93,7 @@ export function queryDb(tx: Transaction): QueryDb {
       return viewsFor(db);
     },
     tx,
+    setConfig: (name, value, isLocal) => session.setConfig(name, value, isLocal),
   };
   return db;
 }

@@ -307,7 +307,13 @@ async function main() {
         let fsError: unknown = null;
         const tx = store.begin(() => ctx);
         try {
-          fsRows = await runImpl(impl, params, queryDb(tx));
+          // Ports that call set_config get a session that only reports the value, as the Postgres
+          // side's setting is rolled back with its transaction too.
+          fsRows = await runImpl(
+            impl,
+            params,
+            queryDb(tx, { setConfig: (_name, value) => (value == null ? '' : String(value)) }),
+          );
         } catch (error) {
           fsError = error;
         } finally {

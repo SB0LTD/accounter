@@ -28,6 +28,7 @@ import {
   DOC_ID,
   docIdFor,
   encodeRow,
+  equalityKey,
   sealRow,
   UPDATE_TIME,
   type StoredRow,
@@ -206,6 +207,12 @@ function uniqueRules(info: TableInfo): UniqueRule[] {
 const BOOTSTRAP_ROOT: Record<string, readonly ('insert' | 'update')[]> = {
   financial_entities: ['insert', 'update'],
   businesses: ['insert'],
+};
+
+/** SQL equality for two non-null values of the same column type. */
+const sqlEqualsLoose = (a: unknown, b: unknown) => {
+  const ka = equalityKey(a);
+  return ka !== null && ka === equalityKey(b);
 };
 
 const rulesCache = new Map<string, UniqueRule[]>();
@@ -396,6 +403,14 @@ export class Transaction {
     for (const fk of info.foreignKeys) {
       const values = fk.columns.map(c => row[c]);
       if (values.some(v => v == null)) continue;
+      // A row that references itself (a root business owning itself): Postgres checks foreign keys
+      // once the row exists, so it is its own parent.
+      if (
+        fk.refTable === info.name &&
+        fk.refColumns.every((c, i) => sqlEqualsLoose(row[c], values[i]))
+      ) {
+        continue;
+      }
       if (previous && fk.columns.every(c => previous[c] === row[c])) continue;
       const parent = tableInfo(fk.refTable);
       const keyFn = columnsKeyFn(parent, fk.refColumns);

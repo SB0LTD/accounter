@@ -95,16 +95,18 @@ export class FirestoreClient extends EventEmitter {
     const control = CONTROL.exec(text);
     if (control) return this.control(control);
 
-    if (/\bset_config\s*\(/i.test(text)) return this.setConfig(text, values ?? []);
-
-    if (/^\s*SELECT\s+1\s+(AS\s+)?health\s*;?\s*$/i.test(text)) return result([{ health: 1 }]);
-
+    // A pgTyped query first, even one that calls set_config itself: its port does that through
+    // `db.setConfig`, with the query's named parameters resolved.
     const call = takePendingCall(text, values);
     if (call) {
       return this.statement(async db =>
         result(await runPortedQuery(call.key, call.params, db, text)),
       );
     }
+
+    if (/\bset_config\s*\(/i.test(text)) return this.setConfig(text, values ?? []);
+
+    if (/^\s*SELECT\s+1\s+(AS\s+)?health\s*;?\s*$/i.test(text)) return result([{ health: 1 }]);
 
     const raw = findRawStatement(text);
     if (raw)
@@ -161,14 +163,21 @@ export class FirestoreClient extends EventEmitter {
     for (const match of text.matchAll(SET_CONFIG)) {
       const [, name, param, literal, isLocal] = match;
       const value = param ? values[Number(param) - 1] : literal;
-      const text = value == null ? '' : String(value);
-      if (isLocal!.toLowerCase() === 'true' && this.tx) this.localVars.set(name!, text);
-      else if (isLocal!.toLowerCase() === 'true') {
-        // set_config(..., true) outside a transaction lasts for that statement only.
-      } else this.sessionVars.set(name!, text);
-      row['set_config'] = text;
+      row['set_config'] = this.setVariable(name!, value, isLocal!.toLowerCase() === 'true');
     }
     return result([row]);
+  }
+
+  /**
+   * `set_config(name, value, is_local)`: a local setting lasts until the transaction ends (outside a
+   * transaction, only for the statement); a session one until the client is released. Returns the
+   * value as set_config does ('' for NULL).
+   */
+  setVariable(name: string, value: unknown, isLocal: boolean): string {
+    const text = value == null ? '' : String(value);
+    if (isLocal && this.tx) this.localVars.set(name, text);
+    else if (!isLocal) this.sessionVars.set(name, text);
+    return text;
   }
 
   private requireTx(): Transaction {
@@ -190,10 +199,14 @@ export class FirestoreClient extends EventEmitter {
   private async statement(
     work: (db: QueryDb) => Promise<QueryResultLike>,
   ): Promise<QueryResultLike> {
+    const session = {
+      setConfig: (name: string, value: unknown, isLocal: boolean) =>
+        this.setVariable(name, value, isLocal),
+    };
     if (this.tx) {
       this.assertNotAborted();
       try {
-        return await work(queryDb(this.tx));
+        return await work(queryDb(this.tx, session));
       } catch (error) {
         this.aborted = true;
         throw error;
@@ -201,7 +214,7 @@ export class FirestoreClient extends EventEmitter {
     }
     const tx = this.store.begin(() => this.context());
     try {
-      const output = await work(queryDb(tx));
+      const output = await work(queryDb(tx, session));
       await tx.commit();
       return output;
     } catch (error) {
