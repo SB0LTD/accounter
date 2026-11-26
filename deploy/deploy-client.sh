@@ -14,4 +14,9 @@ export FIREBASE_APP_ID=1:678576192331:web:78d595b06bd95d726dc6ce
 export GRAPHQL_URL="$API_URL/graphql"
 
 yarn workspace @accounter/client build --mode production
+
+# Hosting serves a folder inside the config's directory: copy the build next to firebase.json.
+rm -rf deploy/.build/hosting
+mkdir -p deploy/.build
+cp -r packages/client/dist deploy/.build/hosting
 firebase deploy --only hosting --project sb0-accounter --config deploy/firebase.json

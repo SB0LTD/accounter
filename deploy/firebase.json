@@ -1,7 +1,7 @@
 {
   "hosting": {
     "site": "sb0-accounter",
-    "public": "../packages/client/dist",
+    "public": ".build/hosting",
     "ignore": ["**/.*", "**/*.map"],
     "rewrites": [{ "source": "**", "destination": "/index.html" }],
     "headers": [
