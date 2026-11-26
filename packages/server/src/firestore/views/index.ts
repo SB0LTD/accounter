@@ -8,14 +8,19 @@
  * verification database sets `security_invoker` to match).
  */
 import type { QueryDb } from '../query-db.js';
-import { extendedBusinessTripTransactions } from './extended-business-trip-transactions.js';
-import { extendedCharges } from './extended-charges.js';
+import {
+  extendedBusinessTripTransactions,
+  type ExtendedBusinessTripTransactionRow,
+} from './extended-business-trip-transactions.js';
+import { extendedCharges, type ExtendedChargeRow } from './extended-charges.js';
 import { extendedTags, type ExtendedTagRow } from './extended-tags.js';
 
+export type { ExtendedBusinessTripTransactionRow, ExtendedChargeRow, ExtendedTagRow };
+
 export interface Views {
-  extendedCharges(): Promise<readonly Record<string, unknown>[]>;
+  extendedCharges(): Promise<readonly ExtendedChargeRow[]>;
   extendedTags(): Promise<readonly ExtendedTagRow[]>;
-  extendedBusinessTripTransactions(): Promise<readonly Record<string, unknown>[]>;
+  extendedBusinessTripTransactions(): Promise<readonly ExtendedBusinessTripTransactionRow[]>;
 }
 
 export function viewsFor(db: QueryDb): Views {

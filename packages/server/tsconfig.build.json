@@ -33,6 +33,11 @@
     "src/**/*.test.ts",
     "src/**/*.spec.ts",
     "src/test-utils/**",
-    "src/demo-fixtures/**"
+    "src/demo-fixtures/**",
+    // Firestore verification inputs: test cases and fixture ids, never imported at run time.
+    "src/firestore/**/*.cases.ts",
+    "src/firestore/**/_fixture-ids.ts",
+    "src/firestore/**/_fixture.ts",
+    "src/firestore/**/_case-rows.ts"
   ]
 }

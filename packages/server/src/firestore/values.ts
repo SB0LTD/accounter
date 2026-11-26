@@ -5,6 +5,7 @@
 import { Timestamp } from 'firebase-admin/firestore';
 import { v4 as uuidv4, v7 as uuidv7 } from 'uuid';
 import { enums, type AnyRow, type TableInfo } from './catalog.js';
+import { DbError } from './errors.js';
 import { Numeric } from './numeric.js';
 import type { ColumnKind, ColumnMeta } from './schema/catalog-types.js';
 
@@ -118,20 +119,81 @@ export function sealRow(row: StoredRow, docId: string, updateTime?: Timestamp): 
 // Normalising values written by queries
 // ---------------------------------------------------------------------------------------------
 
+const UUID_INPUT =
+  /^\{?([0-9a-f]{8})-?([0-9a-f]{4})-?([0-9a-f]{4})-?([0-9a-f]{4})-?([0-9a-f]{12})\}?$/i;
+
+/** Postgres's uuid input: braces, upper case and missing hyphens accepted; stored canonical. */
+function canonicalUuid(value: unknown): string {
+  const text = String(value).trim();
+  const match = UUID_INPUT.exec(text);
+  if (!match) throw new DbError(`invalid input syntax for type uuid: "${text}"`, '22P02');
+  return match.slice(1).join('-').toLowerCase();
+}
+
+/** A JS number as pg sends it (`String(n)`), so Postgres parses exactly those digits. */
+function numericInput(value: unknown): Numeric {
+  if (value instanceof Numeric) return value;
+  if (typeof value === 'number') return Numeric.parse(String(value));
+  if (typeof value === 'bigint') return Numeric.of(value);
+  try {
+    return Numeric.parse(String(value));
+  } catch {
+    throw new DbError(`invalid input syntax for type numeric: "${String(value)}"`, '22P02');
+  }
+}
+
+/** `numeric(p,s)`: round to the scale, and refuse values wider than the precision. */
+function applyNumericTypmod(value: Numeric, pgType: string): Numeric {
+  const typmod = /^numeric\((\d+),\s*(\d+)\)/.exec(pgType);
+  if (!typmod) return value;
+  const precision = Number(typmod[1]);
+  const scale = Number(typmod[2]);
+  const rounded = value.withScale(scale);
+  const integerDigits = rounded.abs().toString().split('.')[0]!.replace(/^0+/, '').length;
+  if (integerDigits > precision - scale) {
+    throw new DbError(
+      `numeric field overflow: A field with precision ${precision}, scale ${scale} must round to an absolute value less than 10^${precision - scale}.`,
+      '22003',
+    );
+  }
+  return rounded;
+}
+
+/** `varchar(n)`: too long is an error, unless the excess is only spaces (then it is cut). */
+function applyLengthTypmod(text: string, pgType: string): string {
+  const typmod = /^character varying\((\d+)\)/.exec(pgType);
+  if (!typmod) return text;
+  const limit = Number(typmod[1]);
+  const chars = [...text];
+  if (chars.length <= limit) return text;
+  if (chars.slice(limit).every(ch => ch === ' ')) return chars.slice(0, limit).join('');
+  throw new DbError(`value too long for type character varying(${limit})`, '22001');
+}
+
+const INT_RANGE: Record<string, [number, number]> = {
+  integer: [-2_147_483_648, 2_147_483_647],
+  smallint: [-32_768, 32_767],
+};
+
 function coerceScalar(value: unknown, column: ColumnMeta, table: string): unknown {
   if (value === undefined || value === null) return null;
+  const baseType = column.pgType.replace(/\[\]$/, '');
   switch (column.kind) {
     case 'decimal':
-      if (value instanceof Numeric) return value.toString();
-      return Numeric.of(value as string | number).toString();
+      return applyNumericTypmod(numericInput(value), baseType).toString();
     case 'int8':
-      return typeof value === 'bigint' ? value.toString() : String(value);
+      return typeof value === 'bigint' ? value.toString() : numericInput(value).toString();
     case 'int': {
-      const n = typeof value === 'number' ? value : Number(value);
+      const n = typeof value === 'number' ? value : Number(String(value).trim());
       if (!Number.isInteger(n)) {
-        throw new Error(
-          `invalid input syntax for type integer: "${String(value)}" (${table}.${column.name})`,
+        throw new DbError(
+          `invalid input syntax for type ${baseType}: "${String(value)}" (${table}.${column.name})`,
+          '22P02',
         );
+      }
+      const range = INT_RANGE[baseType];
+      if (range && (n < range[0] || n > range[1])) {
+        throw new DbError(`${baseType} out of range`, '22003');
       }
       return n;
     }
@@ -149,8 +211,15 @@ function coerceScalar(value: unknown, column: ColumnMeta, table: string): unknow
         looksLikeJsonText(value)
         ? JSON.parse(value)
         : structuredClone(value);
-    default:
-      return typeof value === 'string' ? value : String(value);
+    default: {
+      if (baseType === 'uuid') return canonicalUuid(value);
+      const text = typeof value === 'string' ? value : String(value);
+      const labels = enums[baseType];
+      if (labels && !labels.includes(text)) {
+        throw new DbError(`invalid input value for enum ${baseType}: "${text}"`, '22P02');
+      }
+      return applyLengthTypmod(text, baseType);
+    }
   }
 }
 
