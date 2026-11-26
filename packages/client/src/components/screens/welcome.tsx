@@ -7,6 +7,7 @@ import { ROUTES } from '../../router/routes.js';
 import { AccounterSpinner } from '../ui/accounter-spinner.js';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert.js';
 import { Button } from '../ui/button.js';
+import { CreateBusinessCard } from './create-business-card.js';
 
 /**
  * Terminal screen for an authenticated identity that cannot use the app yet.
@@ -103,6 +104,8 @@ export function WelcomePage(): ReactElement {
             Sign out
           </Button>
         </div>
+
+        {isEmailUnverified ? null : <CreateBusinessCard email={viewer?.email ?? null} />}
       </div>
     </div>
   );

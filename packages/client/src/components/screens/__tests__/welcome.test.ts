@@ -26,6 +26,15 @@ vi.mock('../../../hooks/use-logout.js', () => ({
   useLogout: useLogoutMock,
 }));
 
+// The "Create a business" card mutates through urql, which these tests do not provide.
+vi.mock('../../../hooks/use-bootstrap-new-client.js', () => ({
+  useBootstrapNewClient: () => ({
+    fetching: false,
+    error: undefined,
+    bootstrapNewClient: vi.fn(),
+  }),
+}));
+
 (
   globalThis as typeof globalThis & {
     IS_REACT_ACT_ENVIRONMENT?: boolean;
