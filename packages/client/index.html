@@ -2,21 +2,60 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="/icons/accounter-logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Accounter</title>
     <meta
       name="description"
-      content="Accounter brings bank, card, crypto and payroll activity together, matches every transaction to the document that explains it, keeps a double-entry ledger, and generates the files the Israeli Tax Authority expects."
+      content="מערכת פיננסית מלאה לעסקים ישראלים: תנועות מהבנק, מהאשראי, מהקריפטו ומהשכר נמשכות לבד, חשבוניות נקראות מהמייל, והיומן, המע״מ והדוחות מוכנים."
     />
+
+    <!-- Icons and the web app manifest. -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/icons/accounter-logo.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="color-scheme" content="light" />
+    <meta name="application-name" content="Accounter" />
+    <meta name="apple-mobile-web-app-title" content="Accounter" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!--
+      Link previews (WhatsApp, Telegram, Slack, LinkedIn, X). Crawlers read this file as served and
+      run no JavaScript, so everything here is static and every URL is absolute. The landing page
+      opens in Hebrew, so the preview does too. og-image.png is 1200x630 and well under WhatsApp's
+      ~300 KB limit.
+    -->
+    <link rel="canonical" href="https://acc.sb0.tech/" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Accounter — Manage your taxes." />
+    <meta property="og:site_name" content="Accounter" />
+    <meta property="og:url" content="https://acc.sb0.tech/" />
+    <meta property="og:locale" content="he_IL" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:title" content="Accounter — הנהלת החשבונות שלכם, על טייס אוטומטי" />
     <meta
       property="og:description"
-      content="One system for financial operations and Israeli tax compliance: automated data collection, transaction-to-invoice matching, a double-entry ledger, and VAT, PCN874, SHAAM 6111 and uniform-format exports."
+      content="בנק, אשראי, קריפטו ושכר נמשכים לבד, חשבוניות נקראות מהמייל, והיומן, המע״מ והדוחות מוכנים. מערכת פיננסית מלאה לעסקים ישראלים."
     />
-    <meta property="og:image" content="/icons/accounter-logo.svg" />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content="https://acc.sb0.tech/og-image.png" />
+    <meta property="og:image:secure_url" content="https://acc.sb0.tech/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Accounter: הנהלת החשבונות שלכם — על טייס אוטומטי. לצד לוח היום: מזומן, נטו החודש ומה שממתין לאישור."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Accounter — הנהלת החשבונות שלכם, על טייס אוטומטי" />
+    <meta
+      name="twitter:description"
+      content="בנק, אשראי, קריפטו ושכר נמשכים לבד, חשבוניות נקראות מהמייל, והיומן, המע״מ והדוחות מוכנים."
+    />
+    <meta name="twitter:image" content="https://acc.sb0.tech/og-image.png" />
+    <meta name="twitter:image:alt" content="Accounter: הנהלת החשבונות שלכם — על טייס אוטומטי." />
   </head>
   <body>
     <div id="root"></div>

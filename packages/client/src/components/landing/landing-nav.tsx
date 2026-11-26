@@ -50,8 +50,8 @@ export function LandingNav(): ReactElement {
                 onClick={() => setLang(option.value)}
                 className={
                   lang === option.value
-                    ? 'bg-gray-950 px-3 py-1.5 text-white'
-                    : 'px-3 py-1.5 text-gray-500 transition-colors hover:text-gray-950'
+                    ? 'bg-gray-950 px-2.5 py-1.5 text-white sm:px-3'
+                    : 'px-2.5 py-1.5 text-gray-500 transition-colors hover:text-gray-950 sm:px-3'
                 }
               >
                 {option.label}
@@ -59,10 +59,12 @@ export function LandingNav(): ReactElement {
             ))}
           </div>
           {/* To the sign-in page (Google, or email and password), then into the app. */}
-          <Button variant="ghost" onClick={() => void login()}>
+          <Button variant="ghost" className="px-3 sm:px-4" onClick={() => void login()}>
             {content.nav.login}
           </Button>
-          <Button asChild>
+          {/* On a phone the bar has no room for it; the hero's own request-access button sits on
+              the first screen. */}
+          <Button asChild className="hidden sm:inline-flex">
             <a href={REQUEST_ACCESS_URL}>{content.nav.requestAccess}</a>
           </Button>
         </div>
