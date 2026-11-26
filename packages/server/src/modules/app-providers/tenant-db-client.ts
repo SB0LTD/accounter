@@ -748,7 +748,9 @@ export class TenantAwareDBClient {
     // again keeps the RLS session correct as defense-in-depth.
     const businessIdValue = resolveWriteTargetBusinessId(tenant?.businessId, activeReadScope);
 
-    if (!businessIdValue) {
+    // An elevated super-admin without a business (tenant.operator) opens a session with no tenant:
+    // get_current_business_id() is then NULL and RLS shows nothing until the operation sets one.
+    if (!businessIdValue && !tenant?.operator) {
       throw new Error('Missing businessId in AuthContext');
     }
 

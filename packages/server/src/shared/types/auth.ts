@@ -14,6 +14,11 @@ export interface TenantContext {
   businessId: string;
   businessName?: string;
   roleId?: string;
+  /**
+   * A super-admin who belongs to no business, elevated for one operation (creating the first
+   * business): the session has no tenant, so RLS shows no business data until the operation sets one.
+   */
+  operator?: boolean;
 }
 
 /**

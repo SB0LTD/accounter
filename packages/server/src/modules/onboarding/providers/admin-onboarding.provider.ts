@@ -5,6 +5,7 @@ import { makeUUID } from '../../../shared/helpers/deterministic-uuid.js';
 import { AdminContextProvider } from '../../admin-context/providers/admin-context.provider.js';
 import type { AdminContext } from '../../admin-context/types.js';
 import { TenantAwareDBClient } from '../../app-providers/tenant-db-client.js';
+import { AuthContextProvider } from '../../auth/providers/auth-context.provider.js';
 import { Auth0ManagementProvider } from '../../auth/providers/auth0-management.provider.js';
 import { BusinessUsersProvider } from '../../auth/providers/business-users.provider.js';
 import { InvitationsProvider } from '../../auth/providers/invitations.provider.js';
@@ -83,12 +84,13 @@ export class AdminOnboardingProvider {
     private auth0Management: Auth0ManagementProvider,
     private invitationsProvider: InvitationsProvider,
     private superAdminProvider: SuperAdminProvider,
+    private authContextProvider: AuthContextProvider,
   ) {}
 
   async bootstrapNewClient(input: BootstrapClientInput): Promise<BootstrapClientResult> {
     const superAdmin = await this.superAdminProvider.requireSuperAdmin();
 
-    return this.db.transaction(async client => {
+    const result = await this.db.transaction(async client => {
       const {
         businessName,
         countryCode,
@@ -313,5 +315,9 @@ export class AdminOnboardingProvider {
         adminContext,
       };
     });
+    // A super-admin with no business of their own is now a member of this one: resolve the rest of
+    // the mutation (its result fields) inside it.
+    this.authContextProvider.retargetOperator(result.adminEntityId);
+    return result;
   }
 }

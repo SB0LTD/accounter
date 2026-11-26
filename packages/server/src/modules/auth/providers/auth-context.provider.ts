@@ -165,10 +165,23 @@ export class AuthContextProvider {
         permissionsVersion: 0,
         auth0UserId: identity.auth0UserId,
       },
-      tenant: { businessId: '' },
+      tenant: { businessId: '', operator: true },
     };
     this.cachedContext = context;
     return context;
+  }
+
+  /**
+   * After an elevated super-admin has created a business (and been made its member), points the rest
+   * of the operation at it, so the mutation's result resolves inside that business. The context
+   * object is updated in place: the request's DB client holds the same object and reads the tenant
+   * again when it next opens a session.
+   */
+  public retargetOperator(businessId: string): void {
+    const tenant = this.cachedContext?.tenant;
+    if (!tenant?.operator) return;
+    tenant.businessId = businessId;
+    tenant.operator = false;
   }
 
   public async getAuthContext(): Promise<AuthContext | null> {
