@@ -6,8 +6,11 @@ import './index.css';
 import 'json-bigint-patch';
 import { SessionExpiryDialog } from './components/session-expiry-dialog.js';
 import { FirebaseAuthProvider } from './lib/firebase-auth.js';
+import { reloadOnStaleChunk } from './lib/reload-on-stale-chunk.js';
 import { FirebaseUrqlTokenBridge } from './providers/firebase-token-bridge.js';
 import { setUrqlAccessTokenProvider } from './providers/urql.js';
+
+reloadOnStaleChunk();
 
 const rootElement = document.getElementById('root');
 const root = createRoot(rootElement!);
