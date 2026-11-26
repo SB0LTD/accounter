@@ -1,17 +1,13 @@
 import type { ReactElement } from 'react';
 import { useLogin } from '../../hooks/use-login.js';
 import { Button } from '../ui/button.js';
-import { REQUEST_ACCESS_URL, type LandingLang } from './landing-content.js';
+import { REQUEST_ACCESS_URL } from './landing-content.js';
 import { useLandingContent } from './landing-i18n.js';
-
-const LANG_OPTIONS: { value: LandingLang; label: string }[] = [
-  { value: 'he', label: 'עברית' },
-  { value: 'en', label: 'EN' },
-];
+import { LandingLangToggle } from './landing-lang-toggle.js';
 
 export function LandingNav(): ReactElement {
   const login = useLogin();
-  const { lang, setLang, content } = useLandingContent();
+  const { content } = useLandingContent();
 
   return (
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/85 backdrop-blur-sm">
@@ -38,26 +34,7 @@ export function LandingNav(): ReactElement {
         </ul>
 
         <div className="flex items-center gap-1 sm:gap-2">
-          <div
-            role="group"
-            aria-label="Language"
-            className="flex overflow-hidden rounded-full border border-gray-200 text-xs font-semibold"
-          >
-            {LANG_OPTIONS.map(option => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setLang(option.value)}
-                className={
-                  lang === option.value
-                    ? 'bg-gray-950 px-2.5 py-1.5 text-white sm:px-3'
-                    : 'px-2.5 py-1.5 text-gray-500 transition-colors hover:text-gray-950 sm:px-3'
-                }
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          <LandingLangToggle />
           {/* To the sign-in page (Google, or email and password), then into the app. */}
           <Button variant="ghost" className="px-3 sm:px-4" onClick={() => void login()}>
             {content.nav.login}

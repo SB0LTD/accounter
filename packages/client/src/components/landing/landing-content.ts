@@ -175,6 +175,8 @@ export type LandingContent = {
     requestAccess: string;
     /** Short lead-in rendered next to The Guild's logo. */
     maintainedBy: string;
+    privacy: string;
+    terms: string;
   };
 };
 
@@ -529,6 +531,8 @@ const EN: LandingContent = {
       'Tell us about your business and we will set up a workspace for you and your accountant.',
     requestAccess: 'Request access',
     maintainedBy: 'Maintained by',
+    privacy: 'Privacy',
+    terms: 'Terms',
   },
 };
 
@@ -866,6 +870,8 @@ const HE: LandingContent = {
     description: 'ספרו לנו על העסק שלכם ונקים סביבת עבודה לכם ולרואה החשבון שלכם.',
     requestAccess: 'בקשת גישה',
     maintainedBy: 'מנוהל על ידי',
+    privacy: 'פרטיות',
+    terms: 'תנאי שימוש',
   },
 };
 

@@ -1,4 +1,4 @@
-import { useEffect, type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { LandingAssistant } from './landing-assistant.js';
 import { LandingCompliance } from './landing-compliance.js';
 import { LandingFeatures } from './landing-features.js';
@@ -10,6 +10,7 @@ import { LandingIntegrations } from './landing-integrations.js';
 import { LandingNav } from './landing-nav.js';
 import { LandingOpenSource } from './landing-open-source.js';
 import { LandingRoles } from './landing-roles.js';
+import { useDocumentScroll } from './use-document-scroll.js';
 
 /**
  * Public marketing page served at `/` to visitors without a session.
@@ -22,16 +23,7 @@ import { LandingRoles } from './landing-roles.js';
  * page root, not on `<html>`, so the rest of the app is unaffected.
  */
 export function LandingPage(): ReactElement {
-  // The app shell locks scrolling on `.dashboard` screens via `h-screen overflow-hidden`,
-  // and MUI's CssBaseline leaves whatever the previous route set. Make sure a
-  // full-page document scrolls normally when this route takes over.
-  useEffect(() => {
-    const { overflow } = document.body.style;
-    document.body.style.overflow = 'auto';
-    return () => {
-      document.body.style.overflow = overflow;
-    };
-  }, []);
+  useDocumentScroll();
 
   return (
     <LandingLangProvider>

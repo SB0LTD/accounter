@@ -1,5 +1,7 @@
 import type { ReactElement } from 'react';
 import { ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ROUTES } from '../../router/routes.js';
 import { Button } from '../ui/button.js';
 import { BrandIcon, GITHUB_MARK } from './landing-brand-icons.js';
 import { GITHUB_URL, REQUEST_ACCESS_URL } from './landing-content.js';
@@ -28,9 +30,19 @@ export function LandingFooter(): ReactElement {
         </div>
 
         <div className="mt-14 flex flex-col gap-4 border-t border-gray-800 pt-8 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <img src="/icons/accounter-logo.svg" alt="" className="h-6 w-6 invert" />
-            <span className="text-sm font-semibold text-white">Accounter</span>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <div className="flex items-center gap-2">
+              <img src="/icons/accounter-logo.svg" alt="" className="h-6 w-6 invert" />
+              <span className="text-sm font-semibold text-white">Accounter</span>
+            </div>
+            <nav aria-label="Legal" className="flex items-center gap-4 text-sm text-gray-400">
+              <Link to={ROUTES.PRIVACY} className="transition-colors hover:text-white">
+                {footer.privacy}
+              </Link>
+              <Link to={ROUTES.TERMS} className="transition-colors hover:text-white">
+                {footer.terms}
+              </Link>
+            </nav>
           </div>
           <div className="flex items-center gap-6 text-gray-400">
             <a
