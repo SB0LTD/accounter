@@ -1,31 +1,23 @@
 /**
- * Fills a freshly migrated local Postgres database with what a new Accounter installation needs
- * before anyone can sign in: countries, VAT rates, and the first super-admin. Copy it to Firestore
- * afterwards with `firestore:import`. The super-admin then creates the first business in the app
- * (`bootstrapNewClient`, docs/super-user/super-admin-runbook.md).
+ * Fills a freshly migrated local Postgres database with the reference data a new Accounter
+ * installation needs: countries and VAT rates (roles and permissions come from the migrations).
+ * Copy it to Firestore afterwards with `firestore:import`, then register the first super-admin with
+ * `firestore:add-super-admin` once that person has signed in, and let them create the first business
+ * in the app (`bootstrapNewClient`, docs/super-user/super-admin-runbook.md).
  *
  *   POSTGRES_HOST=localhost POSTGRES_PORT=54329 POSTGRES_DB=accounter_bootstrap \
- *     yarn workspace @accounter/server firestore:bootstrap-db --super-admin-uid <firebase uid> [--note "..."]
+ *     yarn workspace @accounter/server firestore:bootstrap-db
  *
  * Refuses any host but localhost. Idempotent.
  */
 import pg from 'pg';
 import { seedCountries } from '../../src/modules/countries/helpers/seed-countries.helper.js';
 
-const args = process.argv.slice(2);
-const option = (name: string) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
-const superAdminUid = option('--super-admin-uid');
-const note = option('--note') ?? 'first super-admin (bootstrap)';
-
 const host = process.env.POSTGRES_HOST ?? 'localhost';
 if (!['localhost', '127.0.0.1', '::1'].includes(host)) {
   console.error(
     `firestore:bootstrap-db only runs against a local database (POSTGRES_HOST=${host})`,
   );
-  process.exit(2);
-}
-if (!superAdminUid) {
-  console.error('Pass --super-admin-uid <Firebase uid of the first super-admin>');
   process.exit(2);
 }
 
@@ -52,17 +44,13 @@ try {
       [percentage, date],
     );
   }
-  await client.query(
-    'INSERT INTO accounter_schema.super_admins (auth0_user_id, note) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-    [superAdminUid, note],
-  );
   await client.query('COMMIT');
   const counts = await client.query(
     `SELECT (SELECT count(*) FROM accounter_schema.countries) AS countries,
             (SELECT count(*) FROM accounter_schema.vat_value) AS vat_rates,
             (SELECT count(*) FROM accounter_schema.roles) AS roles,
             (SELECT count(*) FROM accounter_schema.permissions) AS permissions,
-            (SELECT count(*) FROM accounter_schema.super_admins) AS super_admins`,
+            (SELECT count(*) FROM accounter_schema.role_permissions) AS role_permissions`,
   );
   console.log('bootstrap database ready:', counts.rows[0]);
 } catch (error) {

@@ -38,7 +38,8 @@
     "typecheck": "tsc --noEmit",
     "validate:demo": "tsx src/demo-fixtures/validate-demo-data.ts",
     "firestore:import": "tsx scripts/firestore/import-from-postgres.ts",
-    "firestore:bootstrap-db": "tsx scripts/firestore/prepare-bootstrap-db.ts"
+    "firestore:bootstrap-db": "tsx scripts/firestore/prepare-bootstrap-db.ts",
+    "firestore:add-super-admin": "tsx scripts/firestore/add-super-admin.ts"
   },
   "dependencies": {
     "@accounter/green-invoice-graphql": "workspace:^",
