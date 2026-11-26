@@ -1,8 +1,8 @@
 import { useEffect, type ReactElement } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { useAuth0 } from '@auth0/auth0-react';
 import { useLogout } from '../../hooks/use-logout.js';
 import { useViewer } from '../../hooks/use-viewer.js';
+import { useFirebaseAuth } from '../../lib/firebase-auth.js';
 import { ROUTES } from '../../router/routes.js';
 import { AccounterSpinner } from '../ui/accounter-spinner.js';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert.js';
@@ -17,9 +17,9 @@ import { Button } from '../ui/button.js';
  * dashboard buried under failing queries.
  */
 export function WelcomePage(): ReactElement {
-  const { isAuthenticated, isLoading } = useAuth0();
+  const { isAuthenticated, isLoading } = useFirebaseAuth();
   // This route is public, so it can be opened without a session. Waiting for
-  // Auth0 keeps an unauthenticated visitor from spending a request to learn
+  // the stored session keeps an unauthenticated visitor from spending a request to learn
   // nothing, and keeps an authenticated one from asking before their token is
   // attached — which would answer "no workspace" for a perfectly good account.
   const { fetching, error, viewer } = useViewer({ pause: isLoading || !isAuthenticated });

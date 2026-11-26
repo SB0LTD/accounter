@@ -10,7 +10,7 @@ export function setReauthHandler(fn: ReauthHandler | null): void {
 }
 
 /**
- * Asks the React layer to interactively re-authenticate the user (modal + Auth0 popup).
+ * Asks the React layer to interactively re-authenticate the user (modal with sign-in).
  * Single-flight: concurrent failed operations share one prompt. Falls back to 'redirect'
  * when no handler is registered (e.g. route loaders running before React mounts).
  */

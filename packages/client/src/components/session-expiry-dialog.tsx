@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
-import { Loader2 } from 'lucide-react';
-import { useAuth0 } from '@auth0/auth0-react';
-import { clearStoredAuth0Session } from '../lib/auth0-session.js';
+import { hasSignedInUser } from '../lib/firebase-auth.js';
 import { setReauthHandler, type ReauthOutcome } from '../lib/reauth-coordinator.js';
+import { SignInForm } from './auth/sign-in-form.js';
 import { Button } from './ui/button.js';
 import {
   Dialog,
@@ -13,58 +12,47 @@ import {
   DialogTitle,
 } from './ui/dialog.js';
 
+/**
+ * Re-authentication in place, when the API stops accepting the session: sign in again in a
+ * dialog over the page, and the requests that failed are sent again with the new token.
+ *
+ * When Firebase itself has ended the session (its refresh failed: revoked, expired, account
+ * disabled), it has signed the user out, and the route guards are already taking them to the
+ * login page, which keeps the page to come back to. A dialog over that would be a second sign-in
+ * form, so the client goes straight to the login page instead.
+ */
 export function SessionExpiryDialog(): ReactElement {
-  const { loginWithPopup } = useAuth0();
   const [open, setOpen] = useState(false);
-  const [signingIn, setSigningIn] = useState(false);
   const resolveRef = useRef<((outcome: ReauthOutcome) => void) | null>(null);
 
   const settle = useCallback((outcome: ReauthOutcome) => {
     const resolve = resolveRef.current;
     resolveRef.current = null;
-    setSigningIn(false);
     setOpen(false);
     resolve?.(outcome);
   }, []);
 
   useEffect(() => {
-    setReauthHandler(
-      () =>
-        new Promise<ReauthOutcome>(resolve => {
-          resolveRef.current = resolve;
-          setOpen(true);
-        }),
-    );
+    setReauthHandler(() => {
+      if (!hasSignedInUser()) {
+        return Promise.resolve('redirect');
+      }
+      return new Promise<ReauthOutcome>(resolve => {
+        resolveRef.current = resolve;
+        setOpen(true);
+      });
+    });
     return () => {
       setReauthHandler(null);
     };
   }, []);
-
-  const handleSignIn = useCallback(async () => {
-    setSigningIn(true);
-    try {
-      // Drop the stale/rotated refresh token so the popup mints a fresh session.
-      clearStoredAuth0Session();
-      await loginWithPopup({
-        authorizationParams: {
-          audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-          scope: 'openid profile email offline_access',
-          prompt: 'login',
-        },
-      });
-      settle('authenticated');
-    } catch {
-      // Popup blocked, closed, or failed — fall back to the full-page login flow.
-      settle('redirect');
-    }
-  }, [loginWithPopup, settle]);
 
   return (
     <Dialog
       open={open}
       onOpenChange={next => {
         // Any dismissal without signing in falls back to the login page.
-        if (!next && !signingIn) {
+        if (!next) {
           settle('redirect');
         }
       }}
@@ -76,12 +64,10 @@ export function SessionExpiryDialog(): ReactElement {
             Your session expired. Sign in to continue where you left off.
           </DialogDescription>
         </DialogHeader>
+        <SignInForm onSignedIn={() => settle('authenticated')} />
         <DialogFooter>
-          <Button variant="outline" onClick={() => settle('redirect')} disabled={signingIn}>
+          <Button variant="outline" onClick={() => settle('redirect')}>
             Go to login page
-          </Button>
-          <Button onClick={handleSignIn} disabled={signingIn}>
-            {signingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sign in'}
           </Button>
         </DialogFooter>
       </DialogContent>

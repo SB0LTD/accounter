@@ -455,7 +455,7 @@ describe('URQL auth exchange hardening', () => {
     );
   });
 
-  it('keeps existing Auth0 token flow untouched when VITE_DEV_AUTH is disabled', async () => {
+  it('keeps the bearer token flow untouched when VITE_DEV_AUTH is disabled', async () => {
     vi.stubEnv('VITE_DEV_AUTH', '0');
     vi.stubEnv('VITE_DEV_AUTH_USER_ID', 'dev-user-123');
 

@@ -3,18 +3,10 @@
 import React from 'react';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { useLogin } from '../use-login.js';
 import { ROUTES } from '../../router/routes.js';
-
-const { useAuth0Mock, loginWithRedirectMock } = vi.hoisted(() => ({
-  useAuth0Mock: vi.fn(),
-  loginWithRedirectMock: vi.fn(),
-}));
-
-vi.mock('@auth0/auth0-react', () => ({
-  useAuth0: useAuth0Mock,
-}));
 
 (
   globalThis as typeof globalThis & {
@@ -31,13 +23,21 @@ async function clickLogin(options?: HarnessOptions) {
     return React.createElement('button', { onClick: () => void login(options) }, 'Log in');
   }
 
+  const router = createMemoryRouter(
+    [
+      { path: '/', element: React.createElement(LoginHarness) },
+      { path: ROUTES.LOGIN, element: React.createElement('div', null, 'Login Page') },
+    ],
+    { initialEntries: ['/'] },
+  );
+
   const container = document.createElement('div');
   document.body.append(container);
 
   let root: Root | null = null;
   await act(async () => {
     root = createRoot(container);
-    root.render(React.createElement(LoginHarness));
+    root.render(React.createElement(RouterProvider, { router }));
     await Promise.resolve();
   });
 
@@ -54,50 +54,39 @@ async function clickLogin(options?: HarnessOptions) {
     container.remove();
   };
 
-  return { cleanup };
+  return { router, cleanup };
 }
 
 describe('useLogin', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     sessionStorage.clear();
-
-    loginWithRedirectMock.mockResolvedValue(undefined);
-    useAuth0Mock.mockReturnValue({ loginWithRedirect: loginWithRedirectMock });
   });
 
-  it('sends the browser to Auth0 aimed at the app by default', async () => {
-    const { cleanup } = await clickLogin();
+  it('goes to the sign-in page, aimed at the app by default', async () => {
+    const { router, cleanup } = await clickLogin();
 
-    expect(loginWithRedirectMock).toHaveBeenCalledTimes(1);
-    const [call] = loginWithRedirectMock.mock.calls[0];
-    expect(call.appState).toEqual({ returnTo: ROUTES.APP_HOME });
-    expect(call.authorizationParams.redirect_uri).toBe(
-      `${window.location.origin}${ROUTES.AUTH_CALLBACK}`,
-    );
-    expect(call.authorizationParams.scope).toBe('openid profile email offline_access');
-    // Not a re-prompt: an existing browser session should be reused silently.
-    expect(call.authorizationParams.prompt).toBeUndefined();
+    expect(router.state.location.pathname).toBe(ROUTES.LOGIN);
+    expect(router.state.location.search).toBe('');
+    expect(router.state.location.state).toEqual({ returnTo: ROUTES.APP_HOME });
     expect(sessionStorage.getItem('auth:returnTo')).toBe(ROUTES.APP_HOME);
 
     await cleanup();
   });
 
   it('honours an explicit returnTo', async () => {
-    const { cleanup } = await clickLogin({ returnTo: ROUTES.REPORTS.VAT_MONTHLY });
+    const { router, cleanup } = await clickLogin({ returnTo: ROUTES.REPORTS.VAT_MONTHLY });
 
-    const [call] = loginWithRedirectMock.mock.calls[0];
-    expect(call.appState).toEqual({ returnTo: ROUTES.REPORTS.VAT_MONTHLY });
+    expect(router.state.location.state).toEqual({ returnTo: ROUTES.REPORTS.VAT_MONTHLY });
     expect(sessionStorage.getItem('auth:returnTo')).toBe(ROUTES.REPORTS.VAT_MONTHLY);
 
     await cleanup();
   });
 
-  it('forces a re-prompt on reauth', async () => {
-    const { cleanup } = await clickLogin({ isReauth: true });
+  it('marks a re-login after an expired session', async () => {
+    const { router, cleanup } = await clickLogin({ isReauth: true });
 
-    const [call] = loginWithRedirectMock.mock.calls[0];
-    expect(call.authorizationParams.prompt).toBe('login');
+    expect(router.state.location.pathname).toBe(ROUTES.LOGIN);
+    expect(router.state.location.search).toBe('?reauth=1');
 
     await cleanup();
   });

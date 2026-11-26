@@ -10,21 +10,21 @@ import { UserContext, type UserInfo } from '../../providers/index.js';
 import { ROUTES } from '../../router/routes.js';
 
 const {
-  useAuth0Mock,
+  useFirebaseAuthMock,
   logoutMock,
   useMyMembershipsMock,
   getBusinessScopeIdsMock,
   setBusinessScopeMock,
 } = vi.hoisted(() => ({
-  useAuth0Mock: vi.fn(),
+  useFirebaseAuthMock: vi.fn(),
   logoutMock: vi.fn(),
   useMyMembershipsMock: vi.fn(),
   getBusinessScopeIdsMock: vi.fn<() => string[]>(),
   setBusinessScopeMock: vi.fn<(ids: string[]) => void>(),
 }));
 
-vi.mock('@auth0/auth0-react', () => ({
-  useAuth0: useAuth0Mock,
+vi.mock('../../lib/firebase-auth.js', () => ({
+  useFirebaseAuth: useFirebaseAuthMock,
 }));
 
 vi.mock('../../hooks/use-my-memberships.js', () => ({
@@ -141,20 +141,9 @@ vi.mock('../common/tooltip.js', () => ({
   Tooltip: ({ children }: { children?: React.ReactNode }) => children ?? null,
 }));
 
+// The real button signs out through `useLogout` (covered by its own test), which needs a router.
 vi.mock('../common/buttons/logout-button.js', () => ({
-  LogoutButton: () => (
-    <button
-      onClick={() =>
-        logoutMock({
-          logoutParams: {
-            returnTo: `${window.location.origin}${ROUTES.LOGIN}`,
-          },
-        })
-      }
-    >
-      Log out
-    </button>
-  ),
+  LogoutButton: () => <button onClick={() => logoutMock()}>Log out</button>,
 }));
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
@@ -231,7 +220,7 @@ describe('UserNav menu', () => {
   });
 
   it('renders null when user is not authenticated', async () => {
-    useAuth0Mock.mockReturnValue({
+    useFirebaseAuthMock.mockReturnValue({
       isAuthenticated: false,
       user: null,
       logout: logoutMock,
@@ -244,7 +233,7 @@ describe('UserNav menu', () => {
   });
 
   it('shows avatar image when user.picture is available', async () => {
-    useAuth0Mock.mockReturnValue({
+    useFirebaseAuthMock.mockReturnValue({
       isAuthenticated: true,
       user: {
         name: 'John Doe',
@@ -264,7 +253,7 @@ describe('UserNav menu', () => {
   });
 
   it('shows initials fallback when no picture is available', async () => {
-    useAuth0Mock.mockReturnValue({
+    useFirebaseAuthMock.mockReturnValue({
       isAuthenticated: true,
       user: {
         name: 'John Doe',
@@ -280,7 +269,7 @@ describe('UserNav menu', () => {
   });
 
   it('shows name and email in dropdown content', async () => {
-    useAuth0Mock.mockReturnValue({
+    useFirebaseAuthMock.mockReturnValue({
       isAuthenticated: true,
       user: {
         name: 'John Doe',
@@ -306,7 +295,7 @@ describe('UserNav menu', () => {
   });
 
   it('links to the manual automations screen instead of running the jobs from the menu', async () => {
-    useAuth0Mock.mockReturnValue({
+    useFirebaseAuthMock.mockReturnValue({
       isAuthenticated: true,
       user: { name: 'John Doe', email: 'john@example.com' },
       logout: logoutMock,
@@ -325,7 +314,7 @@ describe('UserNav menu', () => {
   it.each(['accountant', 'employee'])(
     'hides manual automations from a %s, whom the server would refuse',
     async role => {
-      useAuth0Mock.mockReturnValue({
+      useFirebaseAuthMock.mockReturnValue({
         isAuthenticated: true,
         user: { name: 'John Doe', email: 'john@example.com' },
         logout: logoutMock,
@@ -341,7 +330,7 @@ describe('UserNav menu', () => {
   );
 
   it('hides manual automations when the scope includes a business the user does not own', async () => {
-    useAuth0Mock.mockReturnValue({
+    useFirebaseAuthMock.mockReturnValue({
       isAuthenticated: true,
       user: { name: 'John Doe', email: 'john@example.com' },
       logout: logoutMock,
@@ -366,8 +355,8 @@ describe('UserNav menu', () => {
     await cleanup();
   });
 
-  it('calls logout with login returnTo when log out is clicked', async () => {
-    useAuth0Mock.mockReturnValue({
+  it('offers log out from the menu', async () => {
+    useFirebaseAuthMock.mockReturnValue({
       isAuthenticated: true,
       user: {
         name: 'John Doe',
@@ -396,17 +385,13 @@ describe('UserNav menu', () => {
       await Promise.resolve();
     });
 
-    expect(logoutMock).toHaveBeenCalledWith({
-      logoutParams: {
-        returnTo: `${window.location.origin}${ROUTES.LOGIN}`,
-      },
-    });
+    expect(logoutMock).toHaveBeenCalledTimes(1);
 
     await cleanup();
   });
 
   it('labels the business-scope picker from the unscoped membership query', async () => {
-    useAuth0Mock.mockReturnValue({
+    useFirebaseAuthMock.mockReturnValue({
       isAuthenticated: true,
       user: { name: 'John Doe', email: 'john@example.com' },
       logout: logoutMock,
@@ -441,7 +426,7 @@ describe('UserNav menu', () => {
   });
 
   it('falls back to the user context memberships when the unscoped query yields nothing', async () => {
-    useAuth0Mock.mockReturnValue({
+    useFirebaseAuthMock.mockReturnValue({
       isAuthenticated: true,
       user: { name: 'John Doe', email: 'john@example.com' },
       logout: logoutMock,
@@ -485,7 +470,7 @@ describe('UserNav business scope picker', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useAuth0Mock.mockReturnValue({
+    useFirebaseAuthMock.mockReturnValue({
       isAuthenticated: true,
       user: { name: 'John Doe', email: 'john@example.com' },
       logout: logoutMock,

@@ -58,11 +58,7 @@ export function LandingNav(): ReactElement {
               </button>
             ))}
           </div>
-          {/*
-            Straight to Auth0, not to /login. An existing user arriving on a new
-            device already knows who they are; the login screen would only be a
-            page with one button on it.
-          */}
+          {/* To the sign-in page (Google, or email and password), then into the app. */}
           <Button variant="ghost" onClick={() => void login()}>
             {content.nav.login}
           </Button>

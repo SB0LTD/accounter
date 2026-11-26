@@ -9,17 +9,18 @@ import { UserContext } from '../../providers/user-provider.js';
 import { ProtectedRoute, PublicOnlyGuard } from '../../router/guards/auth-guards.js';
 import { ROUTES } from '../../router/routes.js';
 
-const { useAuth0Mock, useSessionViewerMock, useViewerMock, refreshUserContextMock } = vi.hoisted(
+const { useFirebaseAuthMock, useSessionViewerMock, useViewerMock, refreshUserContextMock } = vi.hoisted(
   () => ({
-    useAuth0Mock: vi.fn(),
+    useFirebaseAuthMock: vi.fn(),
     useSessionViewerMock: vi.fn(),
     useViewerMock: vi.fn(),
     refreshUserContextMock: vi.fn<() => Promise<void>>(),
   }),
 );
 
-vi.mock('@auth0/auth0-react', () => ({
-  useAuth0: useAuth0Mock,
+vi.mock('../../lib/firebase-auth.js', () => ({
+  useFirebaseAuth: useFirebaseAuthMock,
+  hasStoredFirebaseSession: () => false,
 }));
 
 // ProtectedRoute composes OnboardingGuard, which reads `viewer` from the boot request
@@ -59,7 +60,7 @@ async function renderProtectedPath(
   sessionState: ViewerState = ACTIVE_VIEWER,
   freshState: ViewerState = sessionState,
 ) {
-  useAuth0Mock.mockReturnValue(authState);
+  useFirebaseAuthMock.mockReturnValue(authState);
   useSessionViewerMock.mockReturnValue(sessionState);
   useViewerMock.mockReturnValue(freshState);
 
@@ -123,8 +124,13 @@ async function renderProtectedPath(
   return { html, router, cleanup };
 }
 
-async function renderPublicPath(pathname: string, authState: AuthState) {
-  useAuth0Mock.mockReturnValue(authState);
+async function renderPublicPath(
+  pathname: string,
+  authState: AuthState,
+  state?: { returnTo: string },
+) {
+  useFirebaseAuthMock.mockReturnValue(authState);
+  const [path, query] = pathname.split('?');
 
   const router = createMemoryRouter(
     [
@@ -140,8 +146,16 @@ async function renderPublicPath(pathname: string, authState: AuthState) {
         path: ROUTES.APP_HOME,
         element: React.createElement('div', null, 'Home Page'),
       },
+      {
+        path: ROUTES.DOCUMENTS.ALL,
+        element: React.createElement('div', null, 'Documents Page'),
+      },
+      {
+        path: ROUTES.ACCEPT_INVITATION(),
+        element: React.createElement('div', null, 'Invitation Page'),
+      },
     ],
-    { initialEntries: [pathname] },
+    { initialEntries: [{ pathname: path, search: query ? `?${query}` : '', state }] },
   );
 
   const container = document.createElement('div');
@@ -399,6 +413,7 @@ describe('OnboardingGuard', () => {
 describe('PublicOnlyGuard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
   });
 
   it('redirects authenticated users away from login page', async () => {
@@ -419,6 +434,63 @@ describe('PublicOnlyGuard', () => {
 
     expect(router.state.location.pathname).toBe(ROUTES.LOGIN);
     expect(router.state.location.search).toBe('?reauth=1');
+    expect(html).toContain('Login Page');
+    await cleanup();
+  });
+
+  describe('where a signed-in user is taken', () => {
+    const signedIn = { isAuthenticated: true, isLoading: false };
+
+    it('back to the page the route guard sent to sign in', async () => {
+      const { router, cleanup } = await renderPublicPath(ROUTES.LOGIN, signedIn, {
+        returnTo: ROUTES.DOCUMENTS.ALL,
+      });
+
+      expect(router.state.location.pathname).toBe(ROUTES.DOCUMENTS.ALL);
+      await cleanup();
+    });
+
+    it('to the destination stored before a full page load, and forgets it', async () => {
+      sessionStorage.setItem('auth:returnTo', ROUTES.DOCUMENTS.ALL);
+
+      const { router, cleanup } = await renderPublicPath(ROUTES.LOGIN, signedIn);
+
+      expect(router.state.location.pathname).toBe(ROUTES.DOCUMENTS.ALL);
+      expect(sessionStorage.getItem('auth:returnTo')).toBeNull();
+      await cleanup();
+    });
+
+    it('to an invitation being accepted before anything else', async () => {
+      const invitation = ROUTES.ACCEPT_INVITATION('invite-token-123');
+      sessionStorage.setItem('auth:invitationReturnTo', invitation);
+
+      const { router, cleanup } = await renderPublicPath(ROUTES.LOGIN, signedIn, {
+        returnTo: ROUTES.DOCUMENTS.ALL,
+      });
+
+      expect(router.state.location.pathname).toBe(invitation);
+      expect(sessionStorage.getItem('auth:invitationReturnTo')).toBeNull();
+      await cleanup();
+    });
+  });
+
+  it('holds the login page back while the stored session loads', async () => {
+    const { html, router, cleanup } = await renderPublicPath(ROUTES.LOGIN, {
+      isAuthenticated: false,
+      isLoading: true,
+    });
+
+    expect(router.state.location.pathname).toBe(ROUTES.LOGIN);
+    expect(html).not.toContain('Login Page');
+    await cleanup();
+  });
+
+  it('shows the login page to a visitor who is not signed in', async () => {
+    const { html, cleanup } = await renderPublicPath(ROUTES.LOGIN, {
+      isAuthenticated: false,
+      isLoading: false,
+    });
+
     expect(html).toContain('Login Page');
     await cleanup();
   });

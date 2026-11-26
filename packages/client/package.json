@@ -28,7 +28,6 @@
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "4.0.0",
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "3.0.0",
-    "@auth0/auth0-react": "2.30.0",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@hookform/resolvers": "7.0.8",
@@ -49,6 +48,7 @@
     "dotenv": "18.0.10",
     "embla-carousel-react": "8.6.0",
     "fast-myers-diff": "3.2.0",
+    "firebase": "13.4.0",
     "graphql": "16.15.0",
     "html2canvas-pro": "2.6.4",
     "iconv-lite": "0.7.3",

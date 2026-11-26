@@ -74,7 +74,7 @@ let onClientReset: ((client: Client) => void) | null = null;
 let markTokenProviderRegistered: () => void = () => {};
 /**
  * Settles once a token provider is first registered. The router starts its loaders while the
- * module graph evaluates, before the Auth0 bridge has rendered and registered one.
+ * module graph evaluates, before the auth token bridge has rendered and registered one.
  */
 const tokenProviderRegistered = new Promise<void>(resolve => {
   markTokenProviderRegistered = resolve;
@@ -355,7 +355,7 @@ export function getUrqlClient(): Client {
             if (refreshedToken.status === 'unauthenticated') {
               bearerToken = null;
 
-              // Offer in-place re-authentication (modal + Auth0 popup) so queued operations
+              // Offer in-place re-authentication (modal with sign-in) so queued operations
               // can resume without losing page state. Falls back to a full-page redirect.
               const outcome = await requestInteractiveReauth();
               if (outcome === 'authenticated') {

@@ -1,9 +1,9 @@
 import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import equal from 'deep-equal';
 import { useClient, useQuery, type CombinedError } from 'urql';
-import { useAuth0 } from '@auth0/auth0-react';
 import { AccounterLoader } from '../components/common/loaders/loader.js';
 import { UserContextDocument, type UserContextQuery } from '../gql/graphql.js';
+import { useFirebaseAuth } from '../lib/firebase-auth.js';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-expressions -- used by codegen
 /* GraphQL */ `
@@ -206,11 +206,11 @@ export function UserProvider({ children }: { children?: ReactNode }): ReactNode 
     return <DevAuthUserProvider>{children}</DevAuthUserProvider>;
   }
 
-  return <Auth0UserProvider>{children}</Auth0UserProvider>;
+  return <FirebaseUserProvider>{children}</FirebaseUserProvider>;
 }
 
-function Auth0UserProvider({ children }: { children?: ReactNode }): ReactNode {
-  const { isAuthenticated, user: auth0User } = useAuth0();
+function FirebaseUserProvider({ children }: { children?: ReactNode }): ReactNode {
+  const { isAuthenticated, user: authUser } = useFirebaseAuth();
   const [user, setUser] = useState<User | null>(null);
 
   // Read for as long as someone is signed in, rather than fetched by hand once they are: urql then
@@ -229,9 +229,9 @@ function Auth0UserProvider({ children }: { children?: ReactNode }): ReactNode {
   // update active user
   useEffect(() => {
     const currentUser =
-      isAuthenticated && auth0User
+      isAuthenticated && authUser
         ? {
-            username: auth0User.email || auth0User.name || auth0User.nickname || 'unknown-user',
+            username: authUser.email || authUser.name || 'unknown-user',
           }
         : null;
 
@@ -245,7 +245,7 @@ function Auth0UserProvider({ children }: { children?: ReactNode }): ReactNode {
         readAgain({ requestPolicy: 'network-only' });
       }
     }
-  }, [user, isAuthenticated, auth0User, readAgain]);
+  }, [user, isAuthenticated, authUser, readAgain]);
 
   if (fetching) {
     return <AccounterLoader />;
