@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { GraphQLError } from 'graphql';
 import { Injectable, Scope } from 'graphql-modules';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import type { AuthContext, TenantContext } from '../../../shared/types/auth.js';
 import type { NoOptionalField } from '../../../shared/types/index.js';
 import { TenantAwareDBClient } from '../../app-providers/tenant-db-client.js';

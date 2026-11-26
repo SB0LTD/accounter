@@ -1,6 +1,6 @@
 import DataLoader from 'dataloader';
 import { Injectable, Scope } from 'graphql-modules';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import { LedgerLockError } from '../../../shared/errors.js';
 import { reassureOwnerIdExists } from '../../../shared/helpers/index.js';
 import { TimelessDateString } from '../../../shared/types/index.js';

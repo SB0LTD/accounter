@@ -1,6 +1,6 @@
 import DataLoader from 'dataloader';
 import { Injectable, Scope } from 'graphql-modules';
-import { sql, type IDatabaseConnection } from '@pgtyped/runtime';
+import { sql, type IDatabaseConnection } from '../../../firestore/sql.js';
 import { DocumentType } from '../../../shared/enums.js';
 import { reassureOwnerIdExists } from '../../../shared/helpers/index.js';
 import type { Optional, TimelessDateString } from '../../../shared/types/index.js';

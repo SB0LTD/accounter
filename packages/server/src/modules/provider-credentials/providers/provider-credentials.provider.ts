@@ -1,6 +1,6 @@
 import { GraphQLError } from 'graphql';
 import { Inject, Injectable, Scope } from 'graphql-modules';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import { ENVIRONMENT } from '../../../shared/tokens.js';
 import type { Environment } from '../../../shared/types/index.js';
 import { GreenInvoiceTokenCacheProvider } from '../../app-providers/green-invoice-token-cache.js';

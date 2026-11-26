@@ -1,4 +1,4 @@
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import type { IGetAuth0UserReferencesQuery } from '../types.js';
 
 type Queryable = Parameters<typeof getAuth0UserReferences.run>[1];

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Scope } from 'graphql-modules';
 import type { PoolClient } from 'pg';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import { DBProvider } from '../../app-providers/db.provider.js';
 import {
   suggestionDataSchema,

@@ -1,6 +1,6 @@
 import { GraphQLError } from 'graphql';
 import { Injectable, Scope } from 'graphql-modules';
-import { sql } from '@pgtyped/runtime';
+import { sql } from '../../../firestore/sql.js';
 import { makeUUID } from '../../../shared/helpers/deterministic-uuid.js';
 import { AdminContextProvider } from '../../admin-context/providers/admin-context.provider.js';
 import type { AdminContext } from '../../admin-context/types.js';
