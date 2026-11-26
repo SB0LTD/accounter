@@ -1,7 +1,9 @@
 import { useEffect, type ReactElement } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { clearReturnTo, resolveReturnTo, stateReturnTo } from '../lib/auth-return-to.js';
+import { ROUTES } from '../router/routes.js';
 import { SignInForm } from './auth/sign-in-form.js';
+import { SB0_URL, Sb0Mark } from './brand/sb0-mark.js';
 
 /**
  * The sign-in page.
@@ -56,17 +58,31 @@ export function LoginPage(): ReactElement {
             Invited by email? Set your password with the link in the invitation, or continue with
             Google if the invitation went to a Google account.
           </p>
+
+          <p className="text-center text-xs text-muted-foreground text-balance">
+            By signing in you accept the{' '}
+            <Link to={ROUTES.TERMS} className="underline underline-offset-2">
+              Terms of Service
+            </Link>{' '}
+            and the{' '}
+            <Link to={ROUTES.PRIVACY} className="underline underline-offset-2">
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </div>
       </div>
 
-      <div className="hidden bg-black lg:block rounded-tl-3xl rounded-bl-3xl">
-        <div className="flex flex-row justify-center items-center h-screen">
-          <img
-            src="../../icons/guild-logo.svg"
-            alt="Guild logo"
-            className="w-[100px] h-[100px] object-cover"
-          />
-        </div>
+      {/* SB0 runs this service, and its shield is the logo on Google's sign-in consent screen. The
+          panel takes the shield image's own background colour, so the image has no visible edge. */}
+      <div className="hidden bg-[#0e0e0e] lg:block rounded-tl-3xl rounded-bl-3xl">
+        <a
+          href={SB0_URL}
+          className="flex flex-col justify-center items-center gap-4 h-screen text-sm text-gray-400"
+        >
+          <Sb0Mark className="size-32 rounded-none" />
+          <span>Accounter, a service of SB0 LTD</span>
+        </a>
       </div>
     </div>
   );

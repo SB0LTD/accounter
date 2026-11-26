@@ -2,6 +2,7 @@ import type { JSX } from 'react';
 import { Link, useResolvedPath } from 'react-router-dom';
 import { cn } from '../../lib/utils.js';
 import { ROUTES } from '../../router/routes.js';
+import { Sb0Mark } from '../brand/sb0-mark.js';
 import { MobileSidebar } from './mobile-sidebar.js';
 import { sidelinks } from './sidelinks.js';
 import { UserNav } from './user-nav.js';
@@ -21,7 +22,7 @@ export function Header(): JSX.Element {
       <nav className="flex h-14 items-center justify-between px-4">
         <div className="hidden lg:block">
           <Link to={ROUTES.APP_HOME}>
-            <img src="../../../icons/logo.svg" alt="Guild Logo" className="w-[64px] h-[64px]" />
+            <Sb0Mark className="size-9" />
           </Link>
         </div>
         <div className="hidden md:visible md:flex flex-row justify-start gap-3">

@@ -1,6 +1,7 @@
 import { Fragment, useEffect, type ReactElement, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '../../router/routes.js';
+import { SB0_URL, Sb0Mark } from '../brand/sb0-mark.js';
 import { LandingLangProvider, useLandingContent } from '../landing/landing-i18n.js';
 import { LandingLangToggle } from '../landing/landing-lang-toggle.js';
 import { useDocumentScroll } from '../landing/use-document-scroll.js';
@@ -106,10 +107,16 @@ function LegalDocumentView({ doc }: { doc: LegalDocId }): ReactElement {
           aria-label="Main"
           className="mx-auto flex h-16 w-full max-w-3xl items-center justify-between gap-4 px-4 sm:px-6"
         >
-          <Link to={ROUTES.HOME} className="flex items-center gap-2">
-            <img src="/icons/accounter-logo.svg" alt="" className="h-7 w-7" />
-            <span className="text-lg font-semibold tracking-tight text-gray-950">Accounter</span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link to={ROUTES.HOME} className="flex items-center gap-2">
+              <img src="/icons/accounter-logo.svg" alt="" className="h-7 w-7" />
+              <span className="text-lg font-semibold tracking-tight text-gray-950">Accounter</span>
+            </Link>
+            <a href={SB0_URL} className="flex items-center gap-2 border-s border-gray-200 ps-3">
+              <span className="text-xs text-gray-500">{content.nav.by}</span>
+              <Sb0Mark className="h-7 w-7" />
+            </a>
+          </div>
           <LandingLangToggle />
         </nav>
       </header>
@@ -143,9 +150,12 @@ function LegalDocumentView({ doc }: { doc: LegalDocId }): ReactElement {
 
       <footer className="border-t border-gray-200 bg-gray-50">
         <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-4 px-4 py-6 text-sm text-gray-500 sm:px-6">
-          <span>
-            © {LEGAL_UPDATED_ISO.slice(0, 4)} {LEGAL_OPERATOR}
-          </span>
+          <a href={SB0_URL} className="flex items-center gap-2 hover:text-gray-950">
+            <Sb0Mark className="h-6 w-6" />
+            <span>
+              © {LEGAL_UPDATED_ISO.slice(0, 4)} {LEGAL_OPERATOR}
+            </span>
+          </a>
           <nav aria-label="Legal" className="flex items-center gap-4">
             <Link to={ROUTES.HOME} className="hover:text-gray-950">
               {copy.home}

@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { useLogin } from '../../hooks/use-login.js';
+import { SB0_URL, Sb0Mark } from '../brand/sb0-mark.js';
 import { Button } from '../ui/button.js';
 import { REQUEST_ACCESS_URL } from './landing-content.js';
 import { useLandingContent } from './landing-i18n.js';
@@ -15,10 +16,20 @@ export function LandingNav(): ReactElement {
         aria-label="Main"
         className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6"
       >
-        <a href="#top" className="flex items-center gap-2">
-          <img src="/icons/accounter-logo.svg" alt="" className="h-7 w-7" />
-          <span className="text-lg font-semibold tracking-tight text-gray-950">Accounter</span>
-        </a>
+        <div className="flex items-center gap-3">
+          <a href="#top" className="flex items-center gap-2">
+            <img src="/icons/accounter-logo.svg" alt="" className="h-7 w-7" />
+            <span className="text-lg font-semibold tracking-tight text-gray-950">Accounter</span>
+          </a>
+          {/* On a phone the bar has no room; the footer carries the SB0 mark there. */}
+          <a
+            href={SB0_URL}
+            className="hidden items-center gap-2 border-s border-gray-200 ps-3 sm:flex"
+          >
+            <span className="text-xs text-gray-500">{content.nav.by}</span>
+            <Sb0Mark className="h-7 w-7" />
+          </a>
+        </div>
 
         <ul className="hidden items-center gap-7 lg:flex">
           {content.nav.sections.map(section => (
