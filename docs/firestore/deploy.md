@@ -2,13 +2,13 @@
 
 ## What runs where
 
-| Piece                    | Where                                                                 |
-| ------------------------ | --------------------------------------------------------------------- |
-| GraphQL API              | Cloud Run `accounter-api`, project `sbzero`, region `me-west1`         |
-| Database                 | Firestore database `accounter`, project `sbzero`, location `me-west1` |
-| Sign-in                  | Firebase Authentication of project `sbzero` (web app "Accounter")     |
-| Web app                  | Firebase Hosting site `sb0-accounter`, project `sb0-accounter`        |
-| Domain                   | `acc.sb0.tech` → the Hosting site (DNS at Namecheap)                  |
+| Piece       | Where                                                                 |
+| ----------- | --------------------------------------------------------------------- |
+| GraphQL API | Cloud Run `accounter-api`, project `sbzero`, region `me-west1`        |
+| Database    | Firestore database `accounter`, project `sbzero`, location `me-west1` |
+| Sign-in     | Firebase Authentication of project `sbzero` (web app "Accounter")     |
+| Web app     | Firebase Hosting site `sb0-accounter`, project `sb0-accounter`        |
+| Domain      | `acc.sb0.tech` → the Hosting site (DNS at Namecheap)                  |
 
 `sbzero` also runs other services and two other Firestore databases. Everything Accounter adds there
 is additive and named `accounter*`; nothing else in the project is changed.
@@ -46,8 +46,8 @@ invitation cleanup. Access to Accounter itself comes from `business_users` membe
 ## Deploying
 
 ```sh
-deploy/deploy-server.sh   # checks every query is ported, builds, deploys accounter-api
-deploy/deploy-client.sh   # builds the web app against the API URL, deploys Hosting
+deploy/deploy-server.sh # checks every query is ported, builds, deploys accounter-api
+deploy/deploy-client.sh # builds the web app against the API URL, deploys Hosting
 ```
 
 The API runs with one instance (`--min-instances 1 --max-instances 1`): the design keeps a live
